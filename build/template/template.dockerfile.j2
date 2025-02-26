@@ -435,3 +435,7 @@ RUN wine64 reg add "HKLM\\SOFTWARE\\Microsoft\\VSCommon\\17.0\\SQM" /f /v OptIn 
 RUN wine64 reg add "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\VSCommon\\17.0\\SQM" /f /v OptIn /t REG_DWORD /d 0 && wineserver --wait
 
 {% endif %}
+
+# Prevent Wine from attempting to display a dialog box in the event of a crash
+# (Without this, execution may hang when running with Xvfb in a headless environment)
+RUN wine64 reg add "HKCU\\Software\\Wine\\WineDbg" /f /v ShowCrashDialog /t REG_DWORD /d 0 && wineserver --wait

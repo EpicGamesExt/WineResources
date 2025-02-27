@@ -13,17 +13,6 @@ This page documents the custom patches that are applied when [building Wine for 
 - [Minidump backport patches](#minidump-backport-patches)
 
 
-## wineserver: Report non-zero exit code for abnormal process termination
-
-**Upstream merge request:** <https://gitlab.winehq.org/wine/wine/-/merge_requests/3908>
-
-**Status:** Merged upstream in commit [2dfeb87f](https://gitlab.winehq.org/wine/wine/-/commit/2dfeb87f410a49dcf0a40d9f81315122b529fa06), present in Wine 9.11 and newer
-
-**Patch file:** [nonzero-exitcode.patch](../patches/nonzero-exitcode.patch)
-
-By default, Wine reports an exit code of zero for Windows processes that terminate due to their corresponding Linux process receiving a signal such as `SIGKILL` (e.g. due to a user manually killing the process, or the [Linux Out Of Memory (OOM) killer](https://www.kernel.org/doc/gorman/html/understand/understand016.html) targeting the process due to memory pressure). This makes it impossible to accurately detect failures when running child processes that are terminated in OOM scenarios, which is problematic when compiling code or shaders. This patch ensures that a non-zero exit code is reported in these scenarios so that they can be correctly detected.
-
-
 ## ntdll.dll: Update NtQueryDirectoryFile to align with current Windows behaviour
 
 **Upstream merge request:** <https://gitlab.winehq.org/wine/wine/-/merge_requests/6904>
@@ -72,10 +61,3 @@ The Wine implementation of the [GlobalMemoryStatusEx](https://learn.microsoft.co
 **Patch file:** [selective-smaps-rollup.patch](../patches/selective-smaps-rollup.patch)
 
 By default, Wine reads process memory statistics from the file `/proc/PID/status` under Linux, which may report approximate values for performance reasons. This patch modifies the code to instead read the more accurate (but more expensive) values from the file `/proc/PID/smaps_rollup`, but only for the specific Unreal Engine thread named "ShaderCompilingThread", since this is the only thread that requires these more accurate values.
-
-
-## Minidump backport patches
-
-**Patch file:** [minidump-backport.mbox](../patches/minidump-backport.mbox)
-
-This file backports the minidump code changes from Wine 9.13 to the stable Wine 9.0 release, and was kindly provided by Eric Pouech from [CodeWeavers](https://www.codeweavers.com/).

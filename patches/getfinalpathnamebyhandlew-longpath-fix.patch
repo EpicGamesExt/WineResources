@@ -1,8 +1,8 @@
 diff --git a/dlls/kernelbase/file.c b/dlls/kernelbase/file.c
-index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed6eef2de0 100644
+index f0dedfe3b14f5c25a6a14f735bd22aaefdf48b15..0085a63518614cc6216f4d98103e94a4651624a9 100644
 --- a/dlls/kernelbase/file.c
 +++ b/dlls/kernelbase/file.c
-@@ -1836,12 +1836,13 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1811,12 +1811,13 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
                                                            DWORD count, DWORD flags )
  {
      WCHAR buffer[sizeof(OBJECT_NAME_INFORMATION) + MAX_PATH + 1];
@@ -18,7 +18,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
      WCHAR *ptr;
  
      TRACE( "(%p,%p,%ld,%lx)\n", file, path, count, flags );
-@@ -1854,12 +1855,35 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1829,12 +1830,35 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
      }
  
      /* get object name */
@@ -56,7 +56,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
          return 0;
      }
      if (info->Name.Length < 4 * sizeof(WCHAR) || info->Name.Buffer[0] != '\\' ||
-@@ -1867,6 +1891,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1842,6 +1866,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
      {
          FIXME("Unexpected object name: %s\n", debugstr_wn(info->Name.Buffer, info->Name.Length / sizeof(WCHAR)));
          SetLastError( ERROR_GEN_FAILURE );
@@ -64,7 +64,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
          return 0;
      }
  
-@@ -1885,7 +1910,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1860,7 +1885,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
      /* Get information required for VOLUME_NAME_NONE, VOLUME_NAME_GUID and VOLUME_NAME_NT */
      if (flags == VOLUME_NAME_NONE || flags == VOLUME_NAME_GUID || flags == VOLUME_NAME_NT)
      {
@@ -77,7 +77,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
          drive_part_len = lstrlenW(drive_part);
          if (!drive_part_len || drive_part_len > lstrlenW(info->Name.Buffer) ||
              drive_part[drive_part_len-1] != '\\' ||
-@@ -1894,6 +1923,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1869,6 +1898,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
              FIXME( "Path %s returned by GetVolumePathNameW does not match file path %s\n",
                     debugstr_w(drive_part), debugstr_w(info->Name.Buffer) );
              SetLastError( ERROR_GEN_FAILURE );
@@ -85,7 +85,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
              return 0;
          }
      }
-@@ -1910,7 +1940,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1885,7 +1915,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
          WCHAR volume_prefix[51];
  
          /* GetVolumeNameForVolumeMountPointW sets error code on failure */
@@ -98,7 +98,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
          ptr = info->Name.Buffer + drive_part_len;
          result = lstrlenW(volume_prefix) + lstrlenW(ptr);
          if (result < count)
-@@ -1930,7 +1964,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1905,7 +1939,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
  
          /* QueryDosDeviceW sets error code on failure */
          drive_part[drive_part_len - 1] = 0;
@@ -111,7 +111,7 @@ index 42c47707582eb06d4d940fcee69cdbe2488b1157..e6ad5777d38c548e6e1099d3605e68ed
          ptr = info->Name.Buffer + drive_part_len - 1;
          result = lstrlenW(nt_prefix) + lstrlenW(ptr);
          if (result < count)
-@@ -1964,6 +2002,8 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
+@@ -1939,6 +1977,8 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
          WARN("Invalid combination of flags: %lx\n", flags);
          SetLastError( ERROR_INVALID_PARAMETER );
      }

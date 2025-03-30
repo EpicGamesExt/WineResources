@@ -40,15 +40,17 @@ static const uint32_t page_writecopy_flags =
 
 
 /***********************************************************************
- *           overcommit_prevention_enabled
+ *           overcommit_prevention_exempt
  *
- * Determines whether we will attempt to prevent memory from being overcommitted.
+ * Determines if this process is exempt from overcommit prevention, but
+ * should still have it's writable memory mapped pages touched to ensure
+ * accurate memory tracking.
  */
-int overcommit_prevention_enabled(void)
+int overcommit_prevention_exempt(void)
 {
-    static int prevent_overcommit = -1;
+    static int overcommit_exempt = -1;
 
-    if (prevent_overcommit == -1)
+    if (overcommit_exempt == -1)
     {
         int exempt_debug;
         {
@@ -103,13 +105,38 @@ int overcommit_prevention_enabled(void)
                                         env_var, 
                                         argument);
                                 }
-                                prevent_overcommit = 0;
+                                overcommit_exempt = 1;
                             }
                         }
                     }
                 } while (read > 0);
                 fclose(fp);
             }
+        }
+
+        if (overcommit_exempt == -1)
+        {
+            overcommit_exempt = 0;
+        }
+    }
+
+    return overcommit_exempt;
+}
+
+/***********************************************************************
+ *           overcommit_prevention_enabled
+ *
+ * Determines whether we will attempt to prevent memory from being overcommitted.
+ */
+int overcommit_prevention_enabled(void)
+{
+    static int prevent_overcommit = -1;
+
+    if (prevent_overcommit == -1)
+    {
+        if (overcommit_prevention_exempt())
+        {
+            prevent_overcommit = 0;
         }
     }
 

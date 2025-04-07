@@ -1,10 +1,10 @@
 diff --git a/dlls/kernelbase/memory.c b/dlls/kernelbase/memory.c
-index 4f4bba9a13b7687e9f8f90dbac5a8281c4dbc3af..0f4744595077ee4b0472d14651eef3c1acddb76e 100644
+index 0be178f6ab764025054e2cbdc0ccae5e45ab4e93..e068666835617b93efc04159b3a6185bf9d0996a 100644
 --- a/dlls/kernelbase/memory.c
 +++ b/dlls/kernelbase/memory.c
-@@ -41,6 +41,33 @@ WINE_DEFAULT_DEBUG_CHANNEL(heap);
- WINE_DECLARE_DEBUG_CHANNEL(virtual);
- WINE_DECLARE_DEBUG_CHANNEL(globalmem);
+@@ -88,6 +88,34 @@ static void send_cross_process_notification( CROSS_PROCESS_WORK_LIST *list, UINT
+ #endif
+ }
  
 +long get_globalmemorystatusex_cache_window(void)
 +{
@@ -24,7 +24,7 @@ index 4f4bba9a13b7687e9f8f90dbac5a8281c4dbc3af..0f4744595077ee4b0472d14651eef3c1
 +        if (0 < n && n < sizeof(str))
 +        {
 +            long res = strtol(str, NULL, 10);
-+            
++
 +            if (res != LONG_MIN && res != LONG_MAX)
 +            {
 +                globalmemorystatusex_cache_window = res;
@@ -33,10 +33,11 @@ index 4f4bba9a13b7687e9f8f90dbac5a8281c4dbc3af..0f4744595077ee4b0472d14651eef3c1
 +    }
 +    return globalmemorystatusex_cache_window;
 +}
++
  
  /***********************************************************************
   * Virtual memory functions
-@@ -1215,10 +1242,18 @@ BOOL WINAPI DECLSPEC_HOTPATCH GlobalMemoryStatusEx( MEMORYSTATUSEX *status )
+@@ -1343,10 +1371,18 @@ BOOL WINAPI DECLSPEC_HOTPATCH GlobalMemoryStatusEx( MEMORYSTATUSEX *status )
          SetLastError( ERROR_INVALID_PARAMETER );
          return FALSE;
      }

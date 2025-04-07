@@ -1,8 +1,8 @@
 diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
-index ee68e4dee9b6ead57333096775edd191ebc8fe22..b4c5e21e12f99f491d86b457b16c6fd6c846687a 100644
+index 8bc69557057ebad408e3ddbd126702c2eb182ecd..0b4817f736964794ab2c4c2dae3d70962899ef50 100644
 --- a/dlls/ntdll/unix/file.c
 +++ b/dlls/ntdll/unix/file.c
-@@ -228,6 +228,7 @@ struct dir_data
+@@ -225,6 +225,7 @@ struct dir_data
      struct file_identity    id;      /* directory file identity */
      struct dir_data_names  *names;   /* directory file names */
      struct dir_data_buffer *buffer;  /* head of data buffers list */
@@ -10,7 +10,7 @@ index ee68e4dee9b6ead57333096775edd191ebc8fe22..b4c5e21e12f99f491d86b457b16c6fd6
  };
  
  static const unsigned int dir_data_buffer_initial_size = 4096;
-@@ -523,6 +524,7 @@ static void free_dir_data( struct dir_data *data )
+@@ -565,6 +566,7 @@ static void free_dir_data( struct dir_data *data )
          free( buffer );
      }
      free( data->names );
@@ -18,7 +18,7 @@ index ee68e4dee9b6ead57333096775edd191ebc8fe22..b4c5e21e12f99f491d86b457b16c6fd6
      free( data );
  }
  
-@@ -2526,6 +2528,14 @@ static NTSTATUS init_cached_dir_data( struct dir_data **data_ret, int fd, const
+@@ -2607,6 +2609,14 @@ static NTSTATUS init_cached_dir_data( struct dir_data **data_ret, int fd, const
          return status;
      }
  
@@ -33,7 +33,7 @@ index ee68e4dee9b6ead57333096775edd191ebc8fe22..b4c5e21e12f99f491d86b457b16c6fd6
      /* sort filenames, but not "." and ".." */
      i = 0;
      if (i < data->count && !strcmp( data->names[i].unix_name, "." )) i++;
-@@ -2548,13 +2558,29 @@ static NTSTATUS init_cached_dir_data( struct dir_data **data_ret, int fd, const
+@@ -2629,13 +2639,29 @@ static NTSTATUS init_cached_dir_data( struct dir_data **data_ret, int fd, const
  }
  
  
@@ -64,7 +64,7 @@ index ee68e4dee9b6ead57333096775edd191ebc8fe22..b4c5e21e12f99f491d86b457b16c6fd6
  {
      unsigned int i;
      int entry = -1, free_entries[16];
-@@ -2595,6 +2621,19 @@ static unsigned int get_cached_dir_data( HANDLE handle, struct dir_data **data_r
+@@ -2676,6 +2702,19 @@ static unsigned int get_cached_dir_data( HANDLE handle, struct dir_data **data_r
          dir_data_cache_size = size;
      }
  
@@ -84,7 +84,7 @@ index ee68e4dee9b6ead57333096775edd191ebc8fe22..b4c5e21e12f99f491d86b457b16c6fd6
      if (!dir_data_cache[entry]) status = init_cached_dir_data( &dir_data_cache[entry], fd, mask );
  
      *data_ret = dir_data_cache[entry];
-@@ -2666,7 +2705,7 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTI
+@@ -2747,7 +2786,7 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTI
      cwd = open( ".", O_RDONLY );
      if (fchdir( fd ) != -1)
      {

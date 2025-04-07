@@ -1,8 +1,8 @@
 diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
-index 71eab55920d159ba39506939aa7dcba125a6da33..c3d03072f074fd374af4cf647a269f624dabcd1b 100644
+index 0c8b4bb9c67b5d5e24e2a71d5d31f23432ef3d4e..40d4f8a2ae14bbf4493845cce0df374337198a71 100644
 --- a/dlls/ntdll/unix/process.c
 +++ b/dlls/ntdll/unix/process.c
-@@ -1224,7 +1224,8 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
+@@ -1227,7 +1227,8 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
                      {
                          SERVER_START_REQ(get_process_vm_counters)
                          {
@@ -13,7 +13,7 @@ index 71eab55920d159ba39506939aa7dcba125a6da33..c3d03072f074fd374af4cf647a269f62
                              {
                                  pvmi.PeakVirtualSize = reply->peak_virtual_size;
 diff --git a/server/process.c b/server/process.c
-index a0d5ea64d97f1dcf80896081b750837c426a8e2f..41a996b188fe2d99d8849178f64c4aa0458acd44 100644
+index e06350f73112f77f79816ce279646e3f5f4ed574..d8dd6aefeeccaf6ab23475ffd11e218d5b73d986 100644
 --- a/server/process.c
 +++ b/server/process.c
 @@ -63,6 +63,9 @@
@@ -26,7 +26,7 @@ index a0d5ea64d97f1dcf80896081b750837c426a8e2f..41a996b188fe2d99d8849178f64c4aa0
  
  /* process object */
  
-@@ -1545,10 +1548,42 @@ DECL_HANDLER(get_process_image_name)
+@@ -1539,10 +1542,42 @@ DECL_HANDLER(get_process_image_name)
      release_object( process );
  }
  
@@ -70,7 +70,7 @@ index a0d5ea64d97f1dcf80896081b750837c426a8e2f..41a996b188fe2d99d8849178f64c4aa0
  
      if (!process) return;
      if (process->unix_pid != -1)
-@@ -1576,6 +1611,12 @@ DECL_HANDLER(get_process_vm_counters)
+@@ -1570,6 +1605,12 @@ DECL_HANDLER(get_process_vm_counters)
                  else if (sscanf( line, "VmSwap: %lu", &value ))
                      reply->pagefile_usage += (mem_size_t)value * 1024;
              }
@@ -84,10 +84,10 @@ index a0d5ea64d97f1dcf80896081b750837c426a8e2f..41a996b188fe2d99d8849178f64c4aa0
              fclose( f );
          }
 diff --git a/server/protocol.def b/server/protocol.def
-index 5d60e7fcda3e81a11a86004a79cef265904a2b9a..9923f0ee2017aadb241409593065f2de4760005a 100644
+index 292303c385fc0efbae54ddd53e13f6a818433dec..2f9d6dc37e84ee5255503739426f8492efa2513a 100644
 --- a/server/protocol.def
 +++ b/server/protocol.def
-@@ -1050,7 +1050,8 @@ typedef struct
+@@ -1184,7 +1184,8 @@ struct obj_locator
  
  /* Retrieve information about a process memory usage */
  @REQ(get_process_vm_counters)
@@ -97,7 +97,7 @@ index 5d60e7fcda3e81a11a86004a79cef265904a2b9a..9923f0ee2017aadb241409593065f2de
  @REPLY
      mem_size_t peak_virtual_size;               /* peak virtual memory in bytes */
      mem_size_t virtual_size;                    /* virtual memory in bytes */
-@@ -1441,6 +1442,15 @@ enum server_fd_type
+@@ -1585,6 +1586,15 @@ enum server_fd_type
  };
  
  

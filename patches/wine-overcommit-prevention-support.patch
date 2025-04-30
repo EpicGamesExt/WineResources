@@ -114,7 +114,7 @@ index f840045f841992e885d7c4db292569e238fb7e3b..17a4beb155120f04d17c8a493e7e8014
  extern void process_exit_wrapper( int status ) DECLSPEC_NORETURN;
  extern size_t server_init_process(void);
 diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
-index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8a96c6029 100644
+index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..e96c9e87c7e76fc1a44318ce52b823a5612f9d35 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
 @@ -75,6 +75,8 @@
@@ -126,14 +126,15 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
  WINE_DEFAULT_DEBUG_CHANNEL(virtual);
  WINE_DECLARE_DEBUG_CHANNEL(module);
  WINE_DECLARE_DEBUG_CHANNEL(virtual_ranges);
-@@ -234,12 +236,26 @@ static inline BOOL is_vprot_exec_write( BYTE vprot )
+@@ -234,12 +236,28 @@ static inline BOOL is_vprot_exec_write( BYTE vprot )
  /* mmap() anonymous memory at a fixed address */
  void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
  {
 +    BOOL write_requested = has_write_flags(prot);
-+    if (overcommit_prevention_enabled() && write_requested && memory_available_for_commit(size) == FALSE)
++    if (should_prevent_overcommit() && write_requested && memory_available_for_commit(size) == FALSE)
 +    {
 +        WARN("Prevented memory mapping due to insufficient memory.\n");
++        disable_overcommit_prevention();
 +        errno = ENOMEM;
 +        return MAP_FAILED;
 +    }
@@ -144,31 +145,33 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
  void *anon_mmap_alloc( size_t size, int prot )
  {
 +    BOOL write_requested = has_write_flags(prot);
-+    if (overcommit_prevention_enabled() && write_requested && memory_available_for_commit(size) == FALSE)
++    if (should_prevent_overcommit() && write_requested && memory_available_for_commit(size) == FALSE)
 +    {
 +        WARN("Prevented memory mapping due to insufficient memory.\n");
++        disable_overcommit_prevention();
 +        errno = ENOMEM;
 +        return MAP_FAILED;
 +    }
      return mmap( NULL, size, prot, MAP_PRIVATE | MAP_ANON, -1, 0 );
  }
  
-@@ -395,6 +411,14 @@ static size_t unmap_area_above_user_limit( void *addr, size_t size )
+@@ -395,6 +413,15 @@ static size_t unmap_area_above_user_limit( void *addr, size_t size )
  static void *anon_mmap_tryfixed( void *start, size_t size, int prot, int flags )
  {
      void *ptr;
 +    BOOL write_requested = has_write_flags(prot);
 +    
-+    if (overcommit_prevention_enabled() && write_requested && memory_available_for_commit(size) == FALSE)
++    if (should_prevent_overcommit() && write_requested && memory_available_for_commit(size) == FALSE)
 +    {
 +        WARN("Prevented memory mapping due to insufficient memory.\n");
++        disable_overcommit_prevention();
 +        errno = ENOMEM;
 +        return MAP_FAILED;
 +    }
  
  #ifdef MAP_FIXED_NOREPLACE
      ptr = mmap( start, size, prot, MAP_FIXED_NOREPLACE | MAP_PRIVATE | MAP_ANON | flags, -1, 0 );
-@@ -1752,14 +1776,44 @@ static void mprotect_range( void *base, size_t size, BYTE set, BYTE clear )
+@@ -1752,14 +1779,44 @@ static void mprotect_range( void *base, size_t size, BYTE set, BYTE clear )
   */
  static BOOL set_vprot( struct file_view *view, void *base, size_t size, BYTE vprot )
  {
@@ -213,7 +216,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      if (mprotect_exec( base, size, get_unix_prot(vprot) )) return FALSE;
      set_page_vprot( base, size, vprot );
      return TRUE;
-@@ -3166,6 +3220,7 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3166,6 +3223,7 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
      HANDLE shared_file;
      LARGE_INTEGER offset;
      sigset_t sigset;
@@ -221,7 +224,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
  
      switch(protect)
      {
-@@ -3241,6 +3296,16 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3241,6 +3299,17 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
  
      if ((res = server_get_unix_fd( handle, 0, &unix_handle, &needs_close, NULL, NULL ))) return res;
  
@@ -229,54 +232,56 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
 +    write_consumes_memory = (protect == PAGE_WRITECOPY || protect == PAGE_EXECUTE_WRITECOPY);
 +
 +    /* if overcommit prevention is enabled then verify that we can satisfy any page commit requests */
-+    if (write_consumes_memory && overcommit_prevention_enabled() && memory_available_for_commit(size) == FALSE)
++    if (write_consumes_memory && should_prevent_overcommit() && memory_available_for_commit(size) == FALSE)
 +    {
 +        WARN("Prevented page overcommit due to insufficient memory.\n");
++        disable_overcommit_prevention();
 +        return STATUS_NO_MEMORY;
 +    }
 +
      server_enter_uninterrupted_section( &virtual_mutex, &sigset );
  
      res = map_view( &view, base, size, alloc_type, vprot, limit_low, limit_high, 0 );
-@@ -3268,6 +3333,11 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3268,6 +3337,11 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
          *addr_ptr = view->base;
          *size_ptr = size;
          VIRTUAL_DEBUG_DUMP_VIEW( view );
 +
 +        /* if overcommit prevention is enabled and we performed a commit, then touch the commited pages */
-+        if (write_consumes_memory && overcommit_prevention_enabled()) {
++        if (write_consumes_memory && should_touch_memory()) {
 +            touch_committed_pages(view->base, size, protect);
 +        }
      }
      else delete_view( view );
  
-@@ -4583,6 +4653,13 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+@@ -4583,6 +4657,14 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
      if (type & MEM_RESERVE_PLACEHOLDER && (protect != PAGE_NOACCESS)) return STATUS_INVALID_PARAMETER;
      if (!arm64ec_view && (attributes & MEM_EXTENDED_PARAMETER_EC_CODE)) return STATUS_INVALID_PARAMETER;
  
 +    /* if overcommit prevention is enabled then verify that we can satisfy any page commit requests */
-+    if ((type & MEM_COMMIT) && overcommit_prevention_enabled() && memory_available_for_commit(size) == FALSE)
++    if ((type & MEM_COMMIT) && should_prevent_overcommit() && memory_available_for_commit(size) == FALSE)
 +    {
 +        WARN("Prevented page overcommit due to insufficient memory.\n");
++        disable_overcommit_prevention();
 +        return STATUS_NO_MEMORY;
 +    }
 +
      /* Reserve the memory */
  
      server_enter_uninterrupted_section( &virtual_mutex, &sigset );
-@@ -4641,6 +4718,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+@@ -4641,6 +4723,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
      {
          *ret = base;
          *size_ptr = size;
 +
 +        /* if overcommit prevention is enabled and we performed a commit, then touch the commited pages */
-+        if ((type & MEM_COMMIT) && overcommit_prevention_enabled()) {
++        if ((type & MEM_COMMIT) && should_touch_memory()) {
 +            touch_committed_pages(base, size, protect);
 +        }
      }
      else if (status == STATUS_NO_MEMORY)
          ERR( "out of memory for allocation, base %p size %08lx\n", base, size );
-@@ -4995,8 +5077,27 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
+@@ -4995,8 +5082,28 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
          /* Make sure all the pages are committed */
          if (get_committed_size( view, base, ~(size_t)0, &vprot, VPROT_COMMITTED ) >= size && (vprot & VPROT_COMMITTED))
          {
@@ -289,16 +294,17 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
 +            /* if overcommit prevention is enabled and write access is about to be granted then verify *
 +             * that we have sufficient memory to write to the pages, since doing so may trigger the    *
 +             * underlying operating system's copy-on-write mechanisms and increase physical memory use */
-+            if (overcommit_prevention_enabled() && write_or_copy_added && memory_available_for_commit(size) == FALSE)
++            if (should_prevent_overcommit() && write_or_copy_added && memory_available_for_commit(size) == FALSE)
 +            {
 +                WARN("Prevented protection change due to insufficient memory.\n");
++                disable_overcommit_prevention();
 +                return STATUS_NO_MEMORY;
 +            }
 +
              status = set_protection( view, base, size, new_prot );
 +
 +            /* if overcommit prevention is enabled and write access was granted then touch the pages */
-+            if (overcommit_prevention_enabled() && write_or_copy_added) {
++            if (should_touch_memory() && write_or_copy_added) {
 +                touch_committed_pages(base, size, new_prot);
 +            }
          }
@@ -316,8 +322,56 @@ index 7e571ac2ba64dafdbd94b0d939e27484a364fcf4..54d53adb43ee919ca9e85e16567d65f0
 +UNIX_LIBS = $(LDEXECFLAGS) $(RT_LIBS) $(INOTIFY_LIBS) $(PROCSTAT_LIBS) -lmemory-patches
  
  unicode_EXTRADEFS = -DBINDIR="\"${bindir}\"" -DDATADIR="\"${datadir}\""
+diff --git a/server/main.c b/server/main.c
+index e014ec535ffa92a8900168123e899d4635186a90..6288bf3c578d8a85890e8cf26fd5d11906bba5f1 100644
+--- a/server/main.c
++++ b/server/main.c
+@@ -26,6 +26,8 @@
+ #include <signal.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <sys/mman.h>
++#include <sys/stat.h>
+ #include <sys/time.h>
+ #include <unistd.h>
+ 
+@@ -214,6 +216,24 @@ static void sigterm_handler( int signum )
+ 
+ int main( int argc, char *argv[] )
+ {
++    const char *overcommit_prevention_shm_name = "overcommit_prevention_triggered";
++
++    /* Create the named shared memory which will be used for communication between
++       processes for overcommit prevention */
++    int fd = shm_open(overcommit_prevention_shm_name, O_RDWR | O_CREAT, 0644);
++    if (fd == -1)
++    {
++        fprintf(stderr, "wineserver: call to shm_open() failed.\n");
++        return 1;
++    }
++
++    if (ftruncate(fd, sizeof(int)) == -1)
++    {
++        fprintf(stderr, "wineserver: call to ftruncate() failed.\n");
++        close(fd);
++        return 1;
++    }
++
+     setvbuf( stderr, NULL, _IOLBF, 0 );
+     server_argv0 = argv[0];
+     parse_options( argc, argv, "d::fhk::p::vw", long_options, option_callback );
+@@ -237,5 +257,9 @@ int main( int argc, char *argv[] )
+     init_threading();
+     init_registry();
+     main_loop();
++
++    close(fd);
++    shm_unlink(overcommit_prevention_shm_name);
++
+     return 0;
+ }
 diff --git a/server/mapping.c b/server/mapping.c
-index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2debe3990d7f 100644
+index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..e6446bbdc8e1cf7a5270fa60873d63238edf196b 100644
 --- a/server/mapping.c
 +++ b/server/mapping.c
 @@ -43,6 +43,8 @@
@@ -329,14 +383,15 @@ index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2deb
  /* list of memory ranges, used to store committed info */
  struct ranges
  {
-@@ -375,7 +377,17 @@ static int create_temp_file( file_pos_t size )
+@@ -375,7 +377,18 @@ static int create_temp_file( file_pos_t size )
      fd = make_temp_file( tmpfn );
      if (fd != -1)
      {
 -        if (!grow_file( fd, size ))
 +        BOOL failed = FALSE;
-+        if (overcommit_prevention_enabled() && is_memory_backed_file(fd) && memory_available_for_commit(size) == FALSE)
++        if (should_prevent_overcommit() && is_memory_backed_file(fd) && memory_available_for_commit(size) == FALSE)
 +        {
++            disable_overcommit_prevention();
 +            set_error(STATUS_NO_MEMORY);
 +            failed = TRUE;
 +        }
@@ -348,18 +403,19 @@ index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2deb
          {
              close( fd );
              fd = -1;
-@@ -644,6 +656,10 @@ static int build_shared_mapping( struct mapping *mapping, int fd,
+@@ -644,6 +657,11 @@ static int build_shared_mapping( struct mapping *mapping, int fd,
      if ((shared_fd = create_temp_file( total_size )) == -1) return 0;
      if (!(file = create_file_for_fd( shared_fd, FILE_GENERIC_READ|FILE_GENERIC_WRITE, 0 ))) return 0;
  
-+    if (overcommit_prevention_enabled() && memory_available_for_commit(max_size) == FALSE)
++    if (should_prevent_overcommit() && memory_available_for_commit(max_size) == FALSE)
 +    {
++        disable_overcommit_prevention();
 +        goto error;
 +    }
      if (!(buffer = malloc( max_size ))) goto error;
  
      /* copy the shared sections data into the temp file */
-@@ -1734,3 +1750,22 @@ DECL_HANDLER(get_mapping_filename)
+@@ -1734,3 +1752,22 @@ DECL_HANDLER(get_mapping_filename)
  
      release_object( process );
  }

@@ -2,6 +2,7 @@
 
 #include <linux/magic.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/vfs.h>
@@ -19,6 +20,7 @@
 #endif
 #include <sys/mman.h>
 
+#include <sys/stat.h>
 #include <windef.h>
 #include <winbase.h>
 #include <winnt.h>
@@ -38,6 +40,220 @@ static const uint32_t page_writecopy_flags =
     PAGE_EXECUTE_WRITECOPY |
     PAGE_WRITECOPY;
 
+/* Used to selectively disable overcommit prevention for OOM handling */
+static BOOL overcommit_prevention_disabled = FALSE;
+static BOOL *overcommit_prevention_triggered = NULL;
+
+/* Shared memory used to communicate between processes for selective overcommit prevention */
+static const char *overcommit_prevention_shm_name = "overcommit_prevention_triggered";
+
+/* Flags used to identify the Content Worker and Shader Compile Worker processes */
+static BOOL is_content_worker_process = FALSE;
+static BOOL is_shader_compile_worker_process = FALSE;
+
+
+/***********************************************************************
+ *           debug_mode_enabled
+ *
+ * Determines whether or not debug mode is enabled.
+ */
+static int debug_mode_enabled(void)
+{
+    static int debug_mode = -1;
+
+    if (debug_mode == -1)
+    {
+        const char *env_var = getenv( "LIBMEMORY_PATCHES_DEBUG" );
+        debug_mode = env_var && atoi(env_var);
+    }
+
+    return debug_mode;
+}
+
+
+/***********************************************************************
+ *           get_cmdline
+ *
+ * Get the contents of /proc/self/cmdline with null byte separators converted
+ * to spaces. You must call free() on the returned pointer when it is no longer
+ * required.
+ */
+static char* get_cmdline(void)
+{
+    FILE *file = NULL;
+    char *line = NULL;
+    size_t len = 0;
+
+    if (debug_mode_enabled())
+        fprintf(stderr, "[libmemory-patches] get_cmdline() called.\n");
+
+    /* Read /proc/self/cmdline which contains the executable's name */
+    if(!(file = fopen("/proc/self/cmdline", "r")))
+    {
+        fprintf(stderr, "[libmemory-patches] ERROR: Failure in call to fopen() for '/proc/self/cmdline'\n");
+        return NULL;
+    }
+
+    if (getline(&line, &len, file) == -1)
+    {
+        fprintf(stderr, "[libmemory-patches] ERROR: Failure in call to getline()\n");
+        free(line);
+        fclose(file);
+        return NULL;
+    }
+
+    /* Replace null separator characters with space character */
+    for (int i = 0; i < (len - 1); i++)
+    {
+        if (*(line + i) == '\0')
+        {
+            *(line + i) = ' ';
+        }
+    }
+
+    fclose(file);
+    return line;
+}
+
+/***********************************************************************
+ *           init_overcommit_prevention_triggered
+ *
+ * Initialisation logic for setting up communication between processes for
+ * selectively disabling overcommit prevention.
+ */
+static BOOL init_overcommit_prevention_triggered(void)
+{
+    if (debug_mode_enabled())
+        fprintf(stderr, "[libmemory-patches] init_overcommit_prevention_triggered() called.\n");
+
+    /* Check if we are 'FortniteContentWorker-Cmd.exe' or 'ShaderCompileWorker.exe' */
+    char *cmdline = get_cmdline();
+    if (cmdline != NULL)
+    {
+        if (strstr(cmdline, "FortniteContentWorker-Cmd.exe"))
+        {
+            is_content_worker_process = TRUE;
+        }
+        else if (strstr(cmdline, "ShaderCompileWorker.exe"))
+        {
+            is_shader_compile_worker_process = TRUE;
+        }
+    }
+    free(cmdline);
+
+    /* Initialise shared memory */
+    int fd = shm_open(overcommit_prevention_shm_name, O_RDWR | O_CREAT, 0644);
+    
+    if (fd == -1)
+    {
+        fprintf(stderr, "[libmemory-patches] ERROR: Failure in call to shm_open()\n");
+        return FALSE;
+    }
+
+    overcommit_prevention_triggered = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+
+    if (overcommit_prevention_triggered == MAP_FAILED)
+    {
+        fprintf(stderr, "[libmemory-patches] ERROR: Failure in call to mmap()\n");
+        overcommit_prevention_triggered = NULL;
+        close(fd);
+        return FALSE;
+    }
+
+    close(fd);
+    return TRUE;
+}
+
+/***********************************************************************
+ *           set_overcommit_prevention_triggered
+ *
+ * Sets overcommit_prevention_triggered to TRUE. Shared memory for inter-process
+ * communication is initialised if required.
+ */
+static BOOL set_overcommit_prevention_triggered()
+{
+    if (debug_mode_enabled())
+        fprintf(stderr, "[libmemory-patches] set_overcommit_prevention_triggered() called.\n");
+
+    if (overcommit_prevention_triggered == NULL)
+    {
+        if (!init_overcommit_prevention_triggered())
+        {
+            fprintf(stderr, "[libmemory-patches] ERROR: Failed to initialise 'overcommit_prevention_triggered'\n");
+            return FALSE;
+        }
+    }
+
+    *overcommit_prevention_triggered = TRUE;
+    return TRUE;
+}
+
+/***********************************************************************
+ *           get_overcommit_prevention_triggered
+ *
+ * Retrieves the current value of overcommit_prevention_triggered. Shared
+ * memory for inter-process communication is initialised if required.
+ */
+static BOOL get_overcommit_prevention_triggered(void)
+{
+    if (overcommit_prevention_triggered == NULL)
+    {
+        if (!init_overcommit_prevention_triggered())
+        {
+            fprintf(stderr, "[libmemory-patches] ERROR: Failed to initialise 'overcommit_prevention_triggered'\n");
+            return FALSE;
+        }
+    }
+
+    return *overcommit_prevention_triggered;
+}
+
+/***********************************************************************
+ *           overcommit_prevention_exempted
+ *
+ * Determines whether the current process is exempt from overcommit prevention.
+ */
+int overcommit_prevention_exempted(void)
+{
+    static int exempted = -1;
+
+    /* Initialise the static variable 'exempted' on the first call */
+    if (exempted == -1)
+    {
+        if (debug_mode_enabled())
+        fprintf(stderr, "[libmemory-patches] overcommit_prevention_exempted() called.\n");
+
+        /* Define the list of processes which are to be exempted from overcommit prevention */
+        const char *exempted_procs[] = {
+            "CrashReportClient.exe",
+            "CrashReportClientEditor.exe"
+        };
+
+        /* Read /proc/self/cmdline which contains the executable's name */
+        char *cmdline = get_cmdline();
+
+        if (cmdline != NULL)
+        {
+            /* Check if this process is in our exemption array */
+            for (int i = 0; i < sizeof(exempted_procs) / sizeof(exempted_procs[0]); i++)
+            {
+                if (strstr(cmdline, exempted_procs[i]))
+                {
+                    exempted = TRUE;
+                    break;
+                }
+            }
+        }
+
+        /* Clean up */
+        free(cmdline);
+
+        if (exempted == -1) exempted = FALSE;
+    }
+
+    return exempted;
+}
+
 
 /***********************************************************************
  *           overcommit_prevention_enabled
@@ -54,7 +270,64 @@ int overcommit_prevention_enabled(void)
         prevent_overcommit = env_var && atoi(env_var);
     }
 
-    return prevent_overcommit;
+    return prevent_overcommit && !overcommit_prevention_disabled;
+}
+
+
+/***********************************************************************
+ *           should_prevent_overcommit
+ *
+ * Determines whether memory allocations should fail if insufficient memory
+ * is available to satisfy a request.
+ */
+BOOL should_prevent_overcommit(void)
+{
+    if (is_content_worker_process && get_overcommit_prevention_triggered())
+    {
+        return FALSE;
+    }
+
+    return overcommit_prevention_enabled() && !overcommit_prevention_exempted();
+}
+
+
+/***********************************************************************
+ *           overcommit_prevention_enabled
+ *
+ * Determines whether we should touch memory pages to ensure accurate memory
+ * tracking for the purpose of preventing overcommit.
+ */
+BOOL should_touch_memory(void)
+{
+    if (is_content_worker_process && get_overcommit_prevention_triggered())
+    {
+        return FALSE;
+    }
+
+    return overcommit_prevention_enabled();
+}
+
+
+/***********************************************************************
+ *           disable_overcommit_prevention
+ *
+ * Selectively disables overcommit prevention for the current process (and
+ * sometimes the parent process) to allow for OOM handling. This function
+ * should be called when a commit fails due to insufficient available memory.
+ */
+void disable_overcommit_prevention(void)
+{
+    if (debug_mode_enabled())
+        fprintf(stderr, "[libmemory-patches] disable_overcommit_prevention() called.\n");
+
+    /* Disable overcommit prevention for the current process */
+    overcommit_prevention_disabled = TRUE;
+
+    /* Disable overcommit prevention for 'FortniteContentWorker-Cmd.exe' */
+    if(is_shader_compile_worker_process)
+    {
+        set_overcommit_prevention_triggered();
+    }
 }
 
 

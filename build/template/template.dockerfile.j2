@@ -61,7 +61,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,t
 
 
 # Retrieve the list of build prerequisites for the selected version of Wine
-RUN curl -fSL "https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/main/source/wine_{{ TEMPLATE_WINE_PACKAGE_VERSION }}~jammy-1.dsc" -o /tmp/wine-deps.dsc
+# Note: This file no longer exists at the URL below, so a copy has been added to this repo instead
+# RUN curl -fSL "https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/main/source/wine_{{ TEMPLATE_WINE_PACKAGE_VERSION }}~jammy-1.dsc" -o /tmp/wine-deps.dsc
+COPY dependencies/wine-deps.dsc /tmp/wine-deps.dsc
 
 # Install the 64-bit versions of the build prerequisites
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked \

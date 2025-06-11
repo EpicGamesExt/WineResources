@@ -99,6 +99,7 @@ class Utility:
 script_dir = Path(__file__).parent
 template_dir = script_dir / 'template'
 context_dir = script_dir / 'context'
+dependencies_dir = script_dir / 'dependencies'
 patches_dir = script_dir.parent / 'patches'
 shim_dir = script_dir.parent / 'memory-shim'
 libmemory_patches_dir = script_dir.parent / 'libmemory-patches'
@@ -196,6 +197,11 @@ shutil.copytree(shim_dir, copied_shim)
 copied_libmemory_patches = context_dir / 'libmemory-patches'
 Utility.delete_if_exists(copied_libmemory_patches)
 shutil.copytree(libmemory_patches_dir, copied_libmemory_patches)
+
+# Copy the build dependencies into the build context directory
+copied_dependencies = context_dir / 'dependencies'
+Utility.delete_if_exists(copied_dependencies)
+shutil.copytree(dependencies_dir, copied_dependencies)
 
 # Remove the Wine patches README from the build context
 Utility.delete_if_exists(copied_patches / 'README.md')

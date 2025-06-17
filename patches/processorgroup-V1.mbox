@@ -1,0 +1,3736 @@
+From e6c98663d12907bd5f730de864432a3bb46dc189 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 09:19:28 +0100
+Subject: [PATCH 01/11] include: Add missing process group related definitions.
+
+---
+ include/winbase.h  |  8 +++++++-
+ include/winnt.h    | 23 +++++++++++++++++------
+ include/winternl.h |  2 ++
+ 3 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/include/winbase.h b/include/winbase.h
+index 1ff60ed2769..34681eb763f 100644
+--- a/include/winbase.h
++++ b/include/winbase.h
+@@ -2138,6 +2138,7 @@ WINADVAPI  PVOID       WINAPI FreeSid(PSID);
+ WINADVAPI  BOOL        WINAPI GetAce(PACL,DWORD,LPVOID*);
+ WINADVAPI  BOOL        WINAPI GetAclInformation(PACL,LPVOID,DWORD,ACL_INFORMATION_CLASS);
+ WINBASEAPI DWORD       WINAPI GetActiveProcessorCount(WORD);
++WINBASEAPI WORD        WINAPI GetActiveProcessorGroupCount(void);
+ WINBASEAPI HRESULT     WINAPI GetApplicationRestartSettings(HANDLE,WCHAR*,DWORD*,DWORD*);
+ WINBASEAPI UINT        WINAPI GetAtomNameA(ATOM,LPSTR,INT);
+ WINBASEAPI UINT        WINAPI GetAtomNameW(ATOM,LPWSTR,INT);
+@@ -2171,7 +2172,7 @@ WINADVAPI  BOOL        WINAPI GetCurrentHwProfileA(LPHW_PROFILE_INFOA);
+ WINADVAPI  BOOL        WINAPI GetCurrentHwProfileW(LPHW_PROFILE_INFOW);
+ #define                       GetCurrentHwProfile WINELIB_NAME_AW(GetCurrentHwProfile)
+ WINBASEAPI DWORD       WINAPI GetCurrentProcessorNumber(void);
+-WINBASEAPI VOID        WINAPI GetCurrentProcessorNumberEx(PPROCESSOR_NUMBER);
++WINBASEAPI VOID        WINAPI GetCurrentProcessorNumberEx(PROCESSOR_NUMBER *);
+ #define                       GetCurrentTime() GetTickCount()
+ WINBASEAPI PUMS_CONTEXT WINAPI GetCurrentUmsThread(void);
+ WINBASEAPI BOOL        WINAPI GetDefaultCommConfigA(LPCSTR,LPCOMMCONFIG,LPDWORD);
+@@ -2237,6 +2238,7 @@ WINBASEAPI DWORD       WINAPI GetLongPathNameW(LPCWSTR,LPWSTR,DWORD);
+ #define                       GetLongPathName WINELIB_NAME_AW(GetLongPathName)
+ WINBASEAPI BOOL        WINAPI GetMailslotInfo(HANDLE,LPDWORD,LPDWORD,LPDWORD,LPDWORD);
+ WINBASEAPI DWORD       WINAPI GetMaximumProcessorCount(WORD);
++WINBASEAPI WORD        WINAPI GetMaximumProcessorGroupCount(void);
+ WINBASEAPI DWORD       WINAPI GetModuleFileNameA(HMODULE,LPSTR,DWORD);
+ WINBASEAPI DWORD       WINAPI GetModuleFileNameW(HMODULE,LPWSTR,DWORD);
+ #define                       GetModuleFileName WINELIB_NAME_AW(GetModuleFileName)
+@@ -2288,6 +2290,7 @@ WINBASEAPI FARPROC     WINAPI GetProcAddress(HMODULE,LPCSTR);
+ WINBASEAPI BOOL        WINAPI GetProcessAffinityMask(HANDLE,PDWORD_PTR,PDWORD_PTR);
+ WINBASEAPI BOOL        WINAPI GetLogicalProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION,PDWORD);
+ WINBASEAPI BOOL        WINAPI GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP,PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX,PDWORD);
++WINBASEAPI BOOL        WINAPI GetProcessGroupAffinity(HANDLE, PUSHORT, PUSHORT);
+ WINBASEAPI DWORD       WINAPI GetProcessHeaps(DWORD,PHANDLE);
+ WINBASEAPI DWORD       WINAPI GetProcessId(HANDLE);
+ WINBASEAPI DWORD       WINAPI GetProcessIdOfThread(HANDLE);
+@@ -2360,6 +2363,7 @@ WINBASEAPI DWORD       WINAPI GetTempPathW(DWORD,LPWSTR);
+ #define                       GetTempPath WINELIB_NAME_AW(GetTempPath)
+ WINBASEAPI BOOL        WINAPI GetThreadContext(HANDLE,CONTEXT *);
+ WINBASEAPI DWORD       WINAPI GetThreadErrorMode(void);
++WINBASEAPI BOOL        WINAPI GetThreadGroupAffinity(HANDLE, PGROUP_AFFINITY);
+ WINBASEAPI DWORD       WINAPI GetThreadId(HANDLE);
+ WINBASEAPI BOOL        WINAPI GetThreadIOPendingFlag(HANDLE,PBOOL);
+ WINBASEAPI INT         WINAPI GetThreadPriority(HANDLE);
+@@ -2748,7 +2752,9 @@ WINBASEAPI DWORD_PTR   WINAPI SetThreadAffinityMask(HANDLE,DWORD_PTR);
+ WINBASEAPI BOOL        WINAPI SetThreadContext(HANDLE,const CONTEXT *);
+ WINBASEAPI BOOL        WINAPI SetThreadErrorMode(DWORD,LPDWORD);
+ WINBASEAPI DWORD       WINAPI SetThreadExecutionState(EXECUTION_STATE);
++WINBASEAPI BOOL        WINAPI SetThreadGroupAffinity(HANDLE, const GROUP_AFFINITY *, GROUP_AFFINITY *);
+ WINBASEAPI DWORD       WINAPI SetThreadIdealProcessor(HANDLE,DWORD);
++WINBASEAPI BOOL        WINAPI SetThreadIdealProcessorEx(HANDLE, PROCESSOR_NUMBER *, PROCESSOR_NUMBER *);
+ WINBASEAPI BOOL        WINAPI SetThreadPriority(HANDLE,INT);
+ WINBASEAPI BOOL        WINAPI SetThreadPriorityBoost(HANDLE,BOOL);
+ WINADVAPI  BOOL        WINAPI SetThreadToken(PHANDLE,HANDLE);
+diff --git a/include/winnt.h b/include/winnt.h
+index 2547f841b7c..83f36f212f9 100644
+--- a/include/winnt.h
++++ b/include/winnt.h
+@@ -734,10 +734,11 @@ typedef DWORD FLONG;
+ #define PROCESSOR_OPTIL          18767
+ 
+ #ifdef _WIN64
+-#define MAXIMUM_PROCESSORS       64
++#define MAXIMUM_PROC_PER_GROUP   64
+ #else
+-#define MAXIMUM_PROCESSORS       32
++#define MAXIMUM_PROC_PER_GROUP   32
+ #endif
++#define MAXIMUM_PROCESSORS       MAXIMUM_PROC_PER_GROUP
+ 
+ typedef struct _MEMORY_BASIC_INFORMATION
+ {
+@@ -6648,8 +6649,13 @@ typedef struct _PROCESSOR_RELATIONSHIP
+ typedef struct _NUMA_NODE_RELATIONSHIP
+ {
+     DWORD NodeNumber;
+-    BYTE Reserved[20];
+-    GROUP_AFFINITY GroupMask;
++    BYTE Reserved[18];
++    WORD GroupCount;
++    union
++    {
++        GROUP_AFFINITY GroupMask;
++        GROUP_AFFINITY GroupMasks[ANYSIZE_ARRAY];
++    };
+ } NUMA_NODE_RELATIONSHIP, *PNUMA_NODE_RELATIONSHIP;
+ 
+ typedef struct _CACHE_RELATIONSHIP
+@@ -6659,8 +6665,13 @@ typedef struct _CACHE_RELATIONSHIP
+     WORD LineSize;
+     DWORD CacheSize;
+     PROCESSOR_CACHE_TYPE Type;
+-    BYTE Reserved[20];
+-    GROUP_AFFINITY GroupMask;
++    BYTE Reserved[18];
++    WORD GroupCount;
++    union
++    {
++        GROUP_AFFINITY GroupMask;
++        GROUP_AFFINITY GroupMasks[ANYSIZE_ARRAY];
++    };
+ } CACHE_RELATIONSHIP, *PCACHE_RELATIONSHIP;
+ 
+ typedef struct _GROUP_RELATIONSHIP
+diff --git a/include/winternl.h b/include/winternl.h
+index 72c0933353f..3e45bed7fb3 100644
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -4558,6 +4558,7 @@ NTSYSAPI NTSTATUS  WINAPI NtFreeVirtualMemory(HANDLE,PVOID*,SIZE_T*,ULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtFsControlFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,ULONG,PVOID,ULONG,PVOID,ULONG);
+ NTSYSAPI NTSTATUS  WINAPI NtGetContextThread(HANDLE,CONTEXT*);
+ NTSYSAPI ULONG     WINAPI NtGetCurrentProcessorNumber(void);
++NTSYSAPI ULONG     WINAPI NtGetCurrentProcessorNumberEx(PROCESSOR_NUMBER*);
+ NTSYSAPI NTSTATUS  WINAPI NtGetNextThread(HANDLE,HANDLE,ACCESS_MASK,ULONG,ULONG,HANDLE*);
+ NTSYSAPI NTSTATUS  WINAPI NtGetNlsSectionPtr(ULONG,ULONG,void*,void**,SIZE_T*);
+ NTSYSAPI NTSTATUS  WINAPI NtGetPlugPlayEvent(ULONG,ULONG,PVOID,ULONG);
+@@ -4922,6 +4923,7 @@ NTSYSAPI NTSTATUS  WINAPI RtlGetCompressionWorkSpaceSize(USHORT,PULONG,PULONG);
+ NTSYSAPI NTSTATUS  WINAPI RtlGetControlSecurityDescriptor(PSECURITY_DESCRIPTOR, PSECURITY_DESCRIPTOR_CONTROL,LPDWORD);
+ NTSYSAPI ULONG     WINAPI RtlGetCurrentDirectory_U(ULONG, LPWSTR);
+ NTSYSAPI PEB *     WINAPI RtlGetCurrentPeb(void);
++NTSYSAPI ULONG     WINAPI RtlGetCurrentProcessorNumber(void);
+ NTSYSAPI void      WINAPI RtlGetCurrentProcessorNumberEx(PROCESSOR_NUMBER*);
+ NTSYSAPI HANDLE    WINAPI RtlGetCurrentTransaction(void);
+ NTSYSAPI NTSTATUS  WINAPI RtlGetDaclSecurityDescriptor(PSECURITY_DESCRIPTOR,PBOOLEAN,PACL *,PBOOLEAN);
+-- 
+2.48.1
+
+
+From fbf2ff5033d95d3891d8bc7681a7c68114529a04 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Thu, 13 Feb 2025 10:31:24 +0100
+Subject: [PATCH 02/11] ntdll: Fix/disable tests not prepared for multiple
+ processor groups.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ dlls/ntdll/tests/info.c | 61 +++++++++++++++++++++++++++++++----------
+ 1 file changed, 46 insertions(+), 15 deletions(-)
+
+diff --git a/dlls/ntdll/tests/info.c b/dlls/ntdll/tests/info.c
+index 9224af56e05..bf13d5e50a3 100644
+--- a/dlls/ntdll/tests/info.c
++++ b/dlls/ntdll/tests/info.c
+@@ -56,6 +56,7 @@ static NTSTATUS (WINAPI * pDbgUiConvertStateChangeStructure)(DBGUI_WAIT_STATE_CH
+ static HANDLE   (WINAPI * pDbgUiGetThreadDebugObject)(void);
+ static void     (WINAPI * pDbgUiSetThreadDebugObject)(HANDLE);
+ static NTSTATUS (WINAPI * pNtSystemDebugControl)(SYSDBG_COMMAND,PVOID,ULONG,PVOID,ULONG,PULONG);
++static WORD     (WINAPI * pGetActiveProcessorGroupCount)(void);
+ 
+ static BOOL is_wow64;
+ static BOOL old_wow64;
+@@ -128,6 +129,7 @@ static void InitFunctionPtrs(void)
+ 
+     pGetSystemDEPPolicy = (void *)GetProcAddress(hkernel32, "GetSystemDEPPolicy");
+     pGetLogicalProcessorInformationEx = (void *) GetProcAddress(hkernel32, "GetLogicalProcessorInformationEx");
++    pGetActiveProcessorGroupCount = (void *) GetProcAddress(hkernel32, "GetActiveProcessorGroupCount");
+ }
+ 
+ static void test_query_basic(void)
+@@ -135,8 +137,9 @@ static void test_query_basic(void)
+     NTSTATUS status;
+     ULONG i, ReturnLength;
+     SYSTEM_BASIC_INFORMATION sbi, sbi2, sbi3;
++    unsigned proc_crop = sizeof(void*) * 8;
+ 
+-    /* This test also covers some basic parameter testing that should be the same for 
++    /* This test also covers some basic parameter testing that should be the same for
+      * every information class
+     */
+ 
+@@ -197,8 +200,9 @@ static void test_query_basic(void)
+     ok( sbi.ActiveProcessorsAffinityMask == sbi2.ActiveProcessorsAffinityMask,
+             "Expected ActiveProcessorsAffinityMask %#Ix, got %#Ix.\n",
+             sbi.ActiveProcessorsAffinityMask, sbi2.ActiveProcessorsAffinityMask);
+-    ok( sbi.NumberOfProcessors == sbi2.NumberOfProcessors, "Expected NumberOfProcessors %u, got %u.\n",
+-            sbi.NumberOfProcessors, sbi2.NumberOfProcessors);
++    ok( min(proc_crop, sbi.NumberOfProcessors) == min(proc_crop, sbi2.NumberOfProcessors),
++        "Expected NumberOfProcessors %u, got %u (%u).\n",
++        sbi.NumberOfProcessors, sbi2.NumberOfProcessors, proc_crop);
+ #ifdef _WIN64
+     ok( sbi.HighestUserAddress == sbi2.HighestUserAddress, "Expected HighestUserAddress %p, got %p.\n",
+             (void *)sbi.HighestUserAddress, (void *)sbi2.HighestUserAddress);
+@@ -252,6 +256,7 @@ static void test_query_basic(void)
+             ULONG64   ActiveProcessorsAffinityMask;
+             BYTE      NumberOfProcessors;
+         } sbi64;
++        unsigned proc_crop = sizeof(void*) == 8 ? 64 : 32;
+ 
+         ok( ReturnLength == sizeof(sbi64), "len %lx\n", ReturnLength );
+         memset( &sbi64, 0xcc, sizeof(sbi64) );
+@@ -276,11 +281,12 @@ static void test_query_basic(void)
+             (ULONG_PTR)sbi64.AllocationGranularity);
+         ok( (ULONG_PTR)sbi.LowestUserAddress == sbi64.LowestUserAddress, "LowestUserAddress %p / %s\n",
+             sbi.LowestUserAddress, wine_dbgstr_longlong(sbi64.LowestUserAddress));
+-        ok( sbi.ActiveProcessorsAffinityMask == sbi64.ActiveProcessorsAffinityMask,
++        ok( sbi.ActiveProcessorsAffinityMask == (DWORD)sbi64.ActiveProcessorsAffinityMask,
+             "ActiveProcessorsAffinityMask %#Ix / %s\n",
+             sbi.ActiveProcessorsAffinityMask, wine_dbgstr_longlong(sbi64.ActiveProcessorsAffinityMask));
+-        ok( sbi.NumberOfProcessors == sbi64.NumberOfProcessors, "NumberOfProcessors %u / %u\n",
+-            sbi.NumberOfProcessors, sbi64.NumberOfProcessors);
++        ok( min(proc_crop, sbi.NumberOfProcessors) == min(proc_crop, sbi64.NumberOfProcessors),
++            "NumberOfProcessors %u / %u (%u)\n",
++            sbi.NumberOfProcessors, sbi64.NumberOfProcessors, proc_crop);
+         ok( sbi64.HighestUserAddress == 0x7ffffffeffff, "wrong limit %s\n",
+             wine_dbgstr_longlong(sbi64.HighestUserAddress));
+     }
+@@ -290,8 +296,15 @@ static void test_query_basic(void)
+     status = pNtQuerySystemInformation(SystemEmulationBasicInformation, &sbi3, sizeof(sbi3), &ReturnLength);
+     ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08lx.\n", status);
+     ok( sizeof(sbi3) == ReturnLength, "Unexpected length %lu.\n", ReturnLength);
++    /* adapt results on machine with more than 32 logical cores */
++    if (sbi.ActiveProcessorsAffinityMask != sbi3.ActiveProcessorsAffinityMask &&
++        (DWORD)sbi.ActiveProcessorsAffinityMask == sbi3.ActiveProcessorsAffinityMask)
++        sbi.ActiveProcessorsAffinityMask = sbi3.ActiveProcessorsAffinityMask;
++    if (sbi.NumberOfProcessors != sbi3.NumberOfProcessors &&
++        sbi3.NumberOfProcessors == min(sbi.NumberOfProcessors, sizeof(void*) * 4))
++        sbi.NumberOfProcessors = sbi3.NumberOfProcessors;
+     ok( !memcmp( &sbi, &sbi3, offsetof(SYSTEM_BASIC_INFORMATION,NumberOfProcessors)+1 ),
+-        "info is different\n" );
++        "info is different %Ix <> %Ix / %u <> %u \n", sbi.ActiveProcessorsAffinityMask, sbi3.ActiveProcessorsAffinityMask, sbi.NumberOfProcessors, sbi3.NumberOfProcessors );
+ 
+     for (i = 0; i < 256; i++)
+     {
+@@ -1070,6 +1083,12 @@ static void test_query_interrupt(void)
+     SYSTEM_BASIC_INFORMATION sbi;
+     SYSTEM_INTERRUPT_INFORMATION* sii;
+ 
++    if (pGetActiveProcessorGroupCount && pGetActiveProcessorGroupCount() > 1)
++    {
++        /* SystemCpuSetInformation returns information on current process' processor group... */
++        skip("Skipping test not compatible with multiple processor groups\n");
++        return;
++    }
+     /* Find out the number of processors */
+     status = pNtQuerySystemInformation(SystemBasicInformation, &sbi, sizeof(sbi), &ReturnLength);
+     ok(status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08lx\n", status);
+@@ -1497,9 +1516,14 @@ static void test_query_cpusetinfo(void)
+         win_skip("SystemCpuSetInformation is not supported\n");
+         return;
+     }
+-
++    if (pGetActiveProcessorGroupCount && pGetActiveProcessorGroupCount() > 1)
++    {
++        /* SystemCpuSetInformation returns information on current process' processor group... */
++        skip("Skipping test not compatible with multiple processor groups\n");
++        return;
++    }
+     ok(status == STATUS_BUFFER_TOO_SMALL, "Got unexpected status %#lx.\n", status);
+-    ok(len == expected_len, "Got unexpected length %lu.\n", len);
++    ok(len == expected_len, "Got unexpected len %lu <> %lu = %u x %Iu.\n", len, expected_len, cpu_count, sizeof(*info));
+ 
+     len = 0xdeadbeef;
+     status = pNtQuerySystemInformation(SystemCpuSetInformation, NULL, 0, &len);
+@@ -1719,7 +1743,8 @@ static void test_query_processor_power_info(void)
+     }
+ 
+     status = pNtPowerInformation(ProcessorInformation, 0, 0, ppi, size);
+-    ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08lx\n", status);
++    if (!pGetActiveProcessorGroupCount || pGetActiveProcessorGroupCount() == 1)
++        ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08lx\n", status);
+ 
+     HeapFree(GetProcessHeap(), 0, ppi);
+ }
+@@ -3354,7 +3379,7 @@ static void test_NtGetCurrentProcessorNumber(void)
+     status = pNtSetInformationProcess(GetCurrentProcess(), ProcessAffinityMask, &new_mask, sizeof(new_mask));
+     ok(status == STATUS_SUCCESS, "got 0x%lx (expected STATUS_SUCCESS)\n", status);
+ 
+-    for (i = 0; i < si.dwNumberOfProcessors; i++)
++    for (i = 0; i < min(si.dwNumberOfProcessors, MAXIMUM_PROC_PER_GROUP); i++)
+     {
+         new_mask = (DWORD_PTR)1 << i;
+         status = pNtSetInformationThread(GetCurrentThread(), ThreadAffinityMask, &new_mask, sizeof(new_mask));
+@@ -4065,6 +4090,12 @@ static void test_processor_idle_cycle_time(void)
+     USHORT group_id;
+     ULONG size;
+ 
++    if (pGetActiveProcessorGroupCount && pGetActiveProcessorGroupCount() > 1)
++    {
++        /* SystemCpuSetInformation returns information on current process' processor group... */
++        skip("Skipping test not compatible with multiple processor groups\n");
++        return;
++    }
+     size = 0xdeadbeef;
+     status = pNtQuerySystemInformation( SystemProcessorIdleCycleTimeInformation, NULL, 0, &size );
+     ok( status == STATUS_BUFFER_TOO_SMALL, "got %#lx.\n", status );
+@@ -4077,12 +4108,12 @@ static void test_processor_idle_cycle_time(void)
+ 
+     size = 0xdeadbeef;
+     status = pNtQuerySystemInformation( SystemProcessorIdleCycleTimeInformation, NULL, sizeof(buffer), &size );
+-    ok( status == STATUS_ACCESS_VIOLATION, "got %#lx.\n", status );
+-    ok( size == 0xdeadbeef, "got %#lx.\n", size );
++    todo_wine ok( status == STATUS_ACCESS_VIOLATION, "got %#lx.\n", status );
++    todo_wine ok( size == 0xdeadbeef, "got %#lx.\n", size );
+ 
+     size = 0xdeadbeef;
+     status = pNtQuerySystemInformation( SystemProcessorIdleCycleTimeInformation, buffer, sizeof(buffer), &size );
+-    ok( !status, "got %#lx.\n", status );
++    todo_wine ok( !status, "got %#lx.\n", status );
+     ok( size == cpu_count * sizeof(*buffer), "got %#lx.\n", size );
+ 
+     memset( buffer, 0xcc, sizeof(buffer) );
+@@ -4098,7 +4129,7 @@ static void test_processor_idle_cycle_time(void)
+     group_id = 0;
+     size = 0xdeadbeef;
+     status = pNtQuerySystemInformationEx( SystemProcessorIdleCycleTimeInformation, &group_id, sizeof(group_id), buffer, sizeof(buffer), &size );
+-    ok( status == STATUS_SUCCESS, "got %#lx.\n", status );
++    todo_wine ok( status == STATUS_SUCCESS, "got %#lx.\n", status );
+     ok( size == cpu_count * sizeof(*buffer), "got %#lx.\n", size );
+ }
+ 
+-- 
+2.48.1
+
+
+From 9fa10d2a68faa9abcd0f0b1e138c2e69a6e55da7 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 09:53:53 +0100
+Subject: [PATCH 03/11] kernel32: Fix/disable tests not prepared for multiple
+ processor groups.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ dlls/kernel32/tests/thread.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/dlls/kernel32/tests/thread.c b/dlls/kernel32/tests/thread.c
+index fa25fd4e4a7..06f4f99f1b2 100644
+--- a/dlls/kernel32/tests/thread.c
++++ b/dlls/kernel32/tests/thread.c
+@@ -101,6 +101,7 @@ static HRESULT (WINAPI *pSetThreadDescription)(HANDLE,const WCHAR *);
+ static HRESULT (WINAPI *pGetThreadDescription)(HANDLE,WCHAR **);
+ static PVOID (WINAPI *pRtlAddVectoredExceptionHandler)(ULONG,PVECTORED_EXCEPTION_HANDLER);
+ static ULONG (WINAPI *pRtlRemoveVectoredExceptionHandler)(PVOID);
++static WORD (WINAPI *pGetActiveProcessorGroupCount)(void);
+ 
+ static HANDLE create_target_process(const char *arg)
+ {
+@@ -901,7 +902,7 @@ static VOID test_thread_processor(void)
+    {
+        /* only the low 32-bits matter */
+        retMask = SetThreadAffinityMask(curthread,~(ULONG_PTR)0);
+-       ok(retMask == processMask, "SetThreadAffinityMask failed\n");
++       ok(retMask == (DWORD)processMask, "SetThreadAffinityMask failed %Ix <> %Ix\n", retMask, processMask);
+        retMask = SetThreadAffinityMask(curthread,~(ULONG_PTR)0 >> 3);
+        ok(retMask == processMask, "SetThreadAffinityMask failed\n");
+    }
+@@ -945,7 +946,7 @@ static VOID test_thread_processor(void)
+         ok(!pGetThreadGroupAffinity(curthread, NULL), "GetThreadGroupAffinity succeeded\n");
+         ok(GetLastError() == ERROR_INVALID_PARAMETER || broken(GetLastError() == ERROR_NOACCESS), /* Win 7 and 8 */
+            "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
+-        ok(affinity.Group == 0, "Expected group 0 got %u\n", affinity.Group);
++        ok(affinity.Group < (pGetActiveProcessorGroupCount ? pGetActiveProcessorGroupCount() : 1), "Expected valid group got %u\n", affinity.Group);
+ 
+         memset(&affinity_new, 0, sizeof(affinity_new));
+         affinity_new.Group = 0;
+@@ -955,7 +956,8 @@ static VOID test_thread_processor(void)
+            affinity_new.Mask, affinity.Mask);
+ 
+         /* show that the "all processors" flag is not supported for SetThreadGroupAffinity */
+-        if (sysInfo.dwNumberOfProcessors < 8 * sizeof(DWORD_PTR))
++        /* FIXME doesn't look right... */
++        if (sysInfo.dwNumberOfProcessors < 8 * sizeof(DWORD_PTR) && (!pGetActiveProcessorGroupCount || pGetActiveProcessorGroupCount() == 1) )
+         {
+             affinity_new.Group = 0;
+             affinity_new.Mask  = ~(DWORD_PTR)0;
+@@ -965,7 +967,7 @@ static VOID test_thread_processor(void)
+                "Expected ERROR_INVALID_PARAMETER, got %ld\n", GetLastError());
+         }
+ 
+-        affinity_new.Group = 1; /* assumes that you have less than 64 logical processors */
++        affinity_new.Group = (pGetActiveProcessorGroupCount ? pGetActiveProcessorGroupCount() : 0) + 1;
+         affinity_new.Mask  = 0x1;
+         SetLastError(0xdeadbeef);
+         ok(!pSetThreadGroupAffinity(curthread, &affinity_new, NULL), "SetThreadGroupAffinity succeeded\n");
+@@ -983,7 +985,7 @@ static VOID test_thread_processor(void)
+            "Expected STATUS_ACCESS_VIOLATION, got %08lx\n", status);
+ 
+         /* restore original mask */
+-        affinity_new.Group = 0;
++        affinity_new.Group = affinity.Group;
+         affinity_new.Mask  = affinity.Mask;
+         SetLastError(0xdeadbeef);
+         ok(pSetThreadGroupAffinity(curthread, &affinity_new, &affinity), "SetThreadGroupAffinity failed\n");
+@@ -2602,6 +2604,7 @@ static void init_funcs(void)
+ 
+     X(GetThreadGroupAffinity);
+     X(SetThreadGroupAffinity);
++    X(GetActiveProcessorGroupCount);
+     X(SetThreadDescription);
+     X(GetThreadDescription);
+ 
+-- 
+2.48.1
+
+
+From 904d2dba6a9c89759de27d9e404201e4dbe7ae32 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Mon, 10 Feb 2025 10:04:12 +0100
+Subject: [PATCH 04/11] kernel32: Add tests about processor groups.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ dlls/kernel32/tests/thread.c | 157 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 157 insertions(+)
+
+diff --git a/dlls/kernel32/tests/thread.c b/dlls/kernel32/tests/thread.c
+index 06f4f99f1b2..aaed8af5977 100644
+--- a/dlls/kernel32/tests/thread.c
++++ b/dlls/kernel32/tests/thread.c
+@@ -102,6 +102,9 @@ static HRESULT (WINAPI *pGetThreadDescription)(HANDLE,WCHAR **);
+ static PVOID (WINAPI *pRtlAddVectoredExceptionHandler)(ULONG,PVECTORED_EXCEPTION_HANDLER);
+ static ULONG (WINAPI *pRtlRemoveVectoredExceptionHandler)(PVOID);
+ static WORD (WINAPI *pGetActiveProcessorGroupCount)(void);
++static WORD (WINAPI *pGetLogicalProcessorInformationEx)(LOGICAL_PROCESSOR_RELATIONSHIP,SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*,DWORD*);
++static BOOL (WINAPI *pGetProcessGroupAffinity)(HANDLE,USHORT*,USHORT*);
++static VOID (WINAPI *pGetCurrentProcessorNumberEx)(PROCESSOR_NUMBER*);
+ 
+ static HANDLE create_target_process(const char *arg)
+ {
+@@ -996,6 +999,156 @@ static VOID test_thread_processor(void)
+         win_skip("Get/SetThreadGroupAffinity not available\n");
+ }
+ 
++static SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *fetch_processor_information(LOGICAL_PROCESSOR_RELATIONSHIP relation, DWORD *len)
++{
++    DWORD len2;
++    void *buffer;
++    BOOL ret;
++
++    len2 = 0;
++    ret = pGetLogicalProcessorInformationEx(relation, NULL, &len2);
++    ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "Unexpected result %u (%lu)\n", ret, GetLastError());
++    buffer = malloc(len2);
++    ok(buffer != NULL, "OOM\n");
++    *len = len2;
++    ret = pGetLogicalProcessorInformationEx(relation, buffer, len);
++    ok(ret, "Unexpected result %u\n", ret);
++    ok(*len == len2, "Unexpected length %lu <> %lu\n", *len, len2);
++    return buffer;
++}
++
++static DWORD WINAPI test_processor_group_thread(void *_pmt)
++{
++    for (;;) Sleep(1000);
++    return 0;
++}
++
++static void test_thread_processor_group(void)
++{
++    DWORD len;
++    KAFFINITY mask;
++    WORD group_count;
++    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *info;
++    unsigned group, idx, i;
++    unsigned num_tested_groups = 0, num_tested_groups_partial = 0;
++    HANDLE thd1;
++    GROUP_AFFINITY gaff, gaff2;
++    PROCESSOR_NUMBER proc;
++    BOOL ret;
++    USHORT groups[4];
++    USHORT groups_count;
++    USHORT groups_aggregation[2];
++    KAFFINITY process_mask, system_mask;
++
++    if (!pGetActiveProcessorGroupCount || !pGetLogicalProcessorInformationEx ||
++        !pGetProcessGroupAffinity ||
++        !pGetCurrentProcessorNumberEx || !pSetThreadGroupAffinity || !pGetThreadGroupAffinity)
++        win_skip("Missing some APIs for processor groups support\n");
++
++    group_count = pGetActiveProcessorGroupCount();
++    ok(group_count, "Expecting at least one processor group\n");
++    if (group_count == 1)
++    {
++        skip("Only one processor group available...\n");
++        return;
++    }
++
++    /* check changing thread processor group */
++    info = fetch_processor_information(RelationGroup, &len);
++    ok(info->Relationship == RelationGroup, "Unexpected relation\n");
++    ok(len == info->Size, "Should have only a single relation group\n");
++
++    ok(info->Group.ActiveGroupCount <= info->Group.MaximumGroupCount, "Unexpected values\n");
++    ok(info->Group.ActiveGroupCount == group_count, "Unexpected values\n");
++
++    for (group = 0; group < info->Group.ActiveGroupCount; group++)
++    {
++        ok(info->Group.GroupInfo[group].ActiveProcessorCount <= info->Group.GroupInfo[group].MaximumProcessorCount, "Unexpected values\n");
++        mask = info->Group.GroupInfo[group].ActiveProcessorMask;
++        ok(mask, "Shouldn't not have inactive processor groups\n");
++
++        if (mask)
++        {
++            /* find active logical core */
++            for (idx = 0; !(mask & 1); idx++, mask >>= 1) {}
++            memset(&gaff, 0, sizeof(gaff));
++            gaff.Group = group;
++            gaff.Mask = (ULONG_PTR)1 << idx;
++            ret = pSetThreadGroupAffinity(GetCurrentThread(), &gaff, NULL);
++            ok(ret, "Couldn't set affinity to logical processor\n");
++            pGetCurrentProcessorNumberEx(&proc);
++            ok(proc.Group == group, "Unexpected processor group\n");
++            ok(proc.Number == idx, "Unexpected processor group\n");
++            memset(&gaff2, 0xA5, sizeof(gaff2));
++            ret = pGetThreadGroupAffinity(GetCurrentThread(), &gaff2);
++            ok(ret, "GetThreadGroupAffinity failed\n");
++            ok(!memcmp(&gaff, &gaff2, sizeof(gaff)), "Should have same result\n");
++            num_tested_groups++;
++        }
++        if (mask && mask != ~(ULONG_PTR)0)
++        {
++            /* find non active logical core */
++            for (idx = 0; mask & 1; idx++, mask >>= 1) {}
++            memset(&gaff, 0, sizeof(gaff));
++            gaff.Group = group;
++            gaff.Mask = (ULONG_PTR)1 << idx;
++            ret = pSetThreadGroupAffinity(GetCurrentThread(), &gaff, NULL);
++            ok(!ret, "Should not be able to set affinity to non present logical processor\n");
++            ok(GetLastError() == ERROR_INVALID_PARAMETER, "Unexpected error (%lu)\n", GetLastError());
++            num_tested_groups_partial++;
++        }
++    }
++    if (num_tested_groups && !num_tested_groups_partial) skip("Couldn't test partial processor groups\n");
++
++    ret = SetProcessAffinityMask(GetCurrentProcess(), ~(DWORD_PTR)0);
++    ok(!ret, "This should have failed on multiple processor groups\n");
++
++    gaff.Group = 0;
++    gaff.Mask = info->Group.GroupInfo[0].ActiveProcessorMask;
++    ret = pSetThreadGroupAffinity(GetCurrentThread(), &gaff, NULL);
++    ok(ret, "Couldn't set affinity to logical processor\n");
++    memset(&gaff2, 0xA5, sizeof(gaff2));
++    ret = pGetThreadGroupAffinity(GetCurrentThread(), &gaff2);
++    ok(ret, "GetThreadGroupAffinity failed\n");
++    ok(!memcmp(&gaff, &gaff2, sizeof(gaff)), "Should have same result\n");
++
++    thd1 = CreateThread(NULL, 0, &test_processor_group_thread, NULL, 0, NULL);
++    ok(thd1 != NULL, "Couldn't create thread\n");
++    gaff.Group = 1;
++    memcpy(&gaff.Mask, &info->Group.GroupInfo[1].ActiveProcessorMask, sizeof(gaff.Mask));
++    ret = pSetThreadGroupAffinity(thd1, &gaff, NULL);
++    ok(ret, "Couldn't set affinity to logical processor\n");
++    memset(&gaff2, 0xA5, sizeof(gaff2));
++    ret = pGetThreadGroupAffinity(thd1, &gaff2);
++    ok(ret, "GetThreadGroupAffinity failed\n");
++    ok(gaff.Group == gaff2.Group, "Should have same group\n");
++    ok(gaff.Mask == gaff2.Mask, "Should have same affinity mask\n");
++
++    memset(groups, 0xA5, sizeof(groups));
++    groups_count = ARRAY_SIZE(groups);
++    ret = pGetProcessGroupAffinity(GetCurrentProcess(), &groups_count, groups);
++    ok(ret, "GetProcessGroupAffinity failed\n");
++    /* as we don't control all the threads, some could be on other processor groups */
++    ok(groups_count >= 2, "Unexpected groups count value\n");
++    groups_aggregation[0] = groups_aggregation[1] = 0;
++    for (i = 0; i < groups_count; i++)
++        if (groups[i] < 2) groups_aggregation[groups[i]]++;
++    ok(groups_aggregation[0] == 1 && groups_aggregation[1] == 1, "Only expecting 0,1 pair of groups\n");
++
++    process_mask = system_mask = 0xdeadbeef;
++    ret = GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask);
++    ok(ret, "GetProcessAffinityMask failed\n");
++    ok(process_mask == ~(DWORD_PTR)0 && system_mask == ~(DWORD_PTR)0, "Unexpected values %Ix %Ix\n", process_mask, system_mask);
++
++    ret = SetProcessAffinityMask(GetCurrentProcess(), 0x1);
++    ok(!ret, "This should have failed on multiple processor groups\n");
++
++    TerminateThread(thd1, 0);
++    CloseHandle(thd1);
++
++    free(info);
++}
++
+ static VOID test_GetCurrentThreadStackLimits(void)
+ {
+     ULONG_PTR low = 0, high = 0;
+@@ -2605,6 +2758,9 @@ static void init_funcs(void)
+     X(GetThreadGroupAffinity);
+     X(SetThreadGroupAffinity);
+     X(GetActiveProcessorGroupCount);
++    X(GetLogicalProcessorInformationEx);
++    X(GetProcessGroupAffinity);
++    X(GetCurrentProcessorNumberEx);
+     X(SetThreadDescription);
+     X(GetThreadDescription);
+ 
+@@ -2673,6 +2829,7 @@ START_TEST(thread)
+    test_SetThreadStackGuarantee();
+    test_GetThreadTimes();
+    test_thread_processor();
++   test_thread_processor_group();
+    test_GetThreadExitCode();
+ #ifdef __i386__
+    test_SetThreadContext();
+-- 
+2.48.1
+
+
+From e2d6c38f00668df39f69454338bf646fea2e0cf3 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 09:19:28 +0100
+Subject: [PATCH 05/11] ntdll: Implement NtGetCurrentProcessorNumberEx().
+
+And the other ntdll, kernelbase, kernel32 related functions.
+---
+ dlls/kernel32/kernel32.spec     |   2 +-
+ dlls/kernelbase/kernelbase.spec |   2 +-
+ dlls/ntdll/ntdll.spec           |   3 +
+ dlls/ntdll/ntsyscalls.h         | 662 ++++++++++++++++----------------
+ dlls/ntdll/rtl.c                |  15 +-
+ dlls/ntdll/unix/system.c        |   6 +
+ dlls/ntdll/unix/thread.c        |  20 +-
+ dlls/ntdll/unix/unix_private.h  |   1 +
+ dlls/wow64/syscall.c            |  11 +
+ 9 files changed, 381 insertions(+), 341 deletions(-)
+
+diff --git a/dlls/kernel32/kernel32.spec b/dlls/kernel32/kernel32.spec
+index 3b6ef866705..5ebf4600c2e 100644
+--- a/dlls/kernel32/kernel32.spec
++++ b/dlls/kernel32/kernel32.spec
+@@ -641,7 +641,7 @@
+ @ stdcall GetCurrentPackagePath(ptr ptr) kernelbase.GetCurrentPackagePath
+ @ stdcall -norelay GetCurrentProcess() KERNEL32_GetCurrentProcess
+ @ stdcall -norelay GetCurrentProcessId() KERNEL32_GetCurrentProcessId
+-@ stdcall GetCurrentProcessorNumber() NTDLL.NtGetCurrentProcessorNumber
++@ stdcall GetCurrentProcessorNumber() NTDLL.RtlGetCurrentProcessorNumber
+ @ stdcall GetCurrentProcessorNumberEx(ptr) NTDLL.RtlGetCurrentProcessorNumberEx
+ @ stdcall -norelay GetCurrentThread() KERNEL32_GetCurrentThread
+ @ stdcall -norelay GetCurrentThreadId() KERNEL32_GetCurrentThreadId
+diff --git a/dlls/kernelbase/kernelbase.spec b/dlls/kernelbase/kernelbase.spec
+index 50c765c792a..21687f0c7d6 100644
+--- a/dlls/kernelbase/kernelbase.spec
++++ b/dlls/kernelbase/kernelbase.spec
+@@ -497,7 +497,7 @@
+ # @ stub GetCurrentPackageSecurityContext
+ @ stdcall -norelay GetCurrentProcess() kernelbase_GetCurrentProcess
+ @ stdcall -norelay GetCurrentProcessId() kernelbase_GetCurrentProcessId
+-@ stdcall GetCurrentProcessorNumber() ntdll.NtGetCurrentProcessorNumber
++@ stdcall GetCurrentProcessorNumber() ntdll.RtlGetCurrentProcessorNumber
+ @ stdcall GetCurrentProcessorNumberEx(ptr) ntdll.RtlGetCurrentProcessorNumberEx
+ # @ stub GetCurrentTargetPlatformContext
+ @ stdcall -norelay GetCurrentThread() kernelbase_GetCurrentThread
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+index cb6682d7e5c..fac35c10c41 100644
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -235,6 +235,7 @@
+ @ stdcall -syscall NtFsControlFile(long long ptr ptr ptr long ptr long ptr long)
+ @ stdcall -norelay -syscall NtGetContextThread(long ptr)
+ @ stdcall -syscall NtGetCurrentProcessorNumber()
++@ stdcall -syscall NtGetCurrentProcessorNumberEx(ptr)
+ # @ stub NtGetDevicePowerState
+ @ stdcall -syscall NtGetNextThread(ptr ptr long long long ptr)
+ @ stdcall -syscall NtGetNlsSectionPtr(long long long ptr ptr)
+@@ -735,6 +736,7 @@
+ @ stdcall RtlGetControlSecurityDescriptor(ptr ptr ptr)
+ @ stdcall RtlGetCurrentDirectory_U(long ptr)
+ @ stdcall RtlGetCurrentPeb()
++@ stdcall RtlGetCurrentProcessorNumber()
+ @ stdcall RtlGetCurrentProcessorNumberEx(ptr)
+ @ stdcall RtlGetCurrentTransaction()
+ @ stdcall RtlGetDaclSecurityDescriptor(ptr ptr ptr ptr)
+@@ -1301,6 +1303,7 @@
+ @ stdcall -private -syscall ZwFsControlFile(long long ptr ptr ptr long ptr long ptr long) NtFsControlFile
+ @ stdcall -private -norelay -syscall ZwGetContextThread(long ptr) NtGetContextThread
+ @ stdcall -private -syscall ZwGetCurrentProcessorNumber() NtGetCurrentProcessorNumber
++@ stdcall -private -syscall ZwGetCurrentProcessorNumberEx(ptr) NtGetCurrentProcessorNumberEx
+ # @ stub ZwGetDevicePowerState
+ @ stdcall -private -syscall ZwGetNlsSectionPtr(long long long ptr ptr) NtGetNlsSectionPtr
+ # @ stub ZwGetPlugPlayEvent
+diff --git a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
+index 8be074e6715..0f3fe396522 100644
+--- a/dlls/ntdll/ntsyscalls.h
++++ b/dlls/ntdll/ntsyscalls.h
+@@ -81,174 +81,175 @@
+     SYSCALL_ENTRY( 0x004d, NtFsControlFile, 40 ) \
+     SYSCALL_ENTRY( 0x004e, NtGetContextThread, 8 ) \
+     SYSCALL_ENTRY( 0x004f, NtGetCurrentProcessorNumber, 0 ) \
+-    SYSCALL_ENTRY( 0x0050, NtGetNextThread, 24 ) \
+-    SYSCALL_ENTRY( 0x0051, NtGetNlsSectionPtr, 20 ) \
+-    SYSCALL_ENTRY( 0x0052, NtGetWriteWatch, 28 ) \
+-    SYSCALL_ENTRY( 0x0053, NtImpersonateAnonymousToken, 4 ) \
+-    SYSCALL_ENTRY( 0x0054, NtInitializeNlsFiles, 12 ) \
+-    SYSCALL_ENTRY( 0x0055, NtInitiatePowerAction, 16 ) \
+-    SYSCALL_ENTRY( 0x0056, NtIsProcessInJob, 8 ) \
+-    SYSCALL_ENTRY( 0x0057, NtListenPort, 8 ) \
+-    SYSCALL_ENTRY( 0x0058, NtLoadDriver, 4 ) \
+-    SYSCALL_ENTRY( 0x0059, NtLoadKey, 8 ) \
+-    SYSCALL_ENTRY( 0x005a, NtLoadKey2, 12 ) \
+-    SYSCALL_ENTRY( 0x005b, NtLoadKeyEx, 32 ) \
+-    SYSCALL_ENTRY( 0x005c, NtLockFile, 40 ) \
+-    SYSCALL_ENTRY( 0x005d, NtLockVirtualMemory, 16 ) \
+-    SYSCALL_ENTRY( 0x005e, NtMakePermanentObject, 4 ) \
+-    SYSCALL_ENTRY( 0x005f, NtMakeTemporaryObject, 4 ) \
+-    SYSCALL_ENTRY( 0x0060, NtMapViewOfSection, 40 ) \
+-    SYSCALL_ENTRY( 0x0061, NtMapViewOfSectionEx, 36 ) \
+-    SYSCALL_ENTRY( 0x0062, NtNotifyChangeDirectoryFile, 36 ) \
+-    SYSCALL_ENTRY( 0x0063, NtNotifyChangeKey, 40 ) \
+-    SYSCALL_ENTRY( 0x0064, NtNotifyChangeMultipleKeys, 48 ) \
+-    SYSCALL_ENTRY( 0x0065, NtOpenDirectoryObject, 12 ) \
+-    SYSCALL_ENTRY( 0x0066, NtOpenEvent, 12 ) \
+-    SYSCALL_ENTRY( 0x0067, NtOpenFile, 24 ) \
+-    SYSCALL_ENTRY( 0x0068, NtOpenIoCompletion, 12 ) \
+-    SYSCALL_ENTRY( 0x0069, NtOpenJobObject, 12 ) \
+-    SYSCALL_ENTRY( 0x006a, NtOpenKey, 12 ) \
+-    SYSCALL_ENTRY( 0x006b, NtOpenKeyEx, 16 ) \
+-    SYSCALL_ENTRY( 0x006c, NtOpenKeyTransacted, 16 ) \
+-    SYSCALL_ENTRY( 0x006d, NtOpenKeyTransactedEx, 20 ) \
+-    SYSCALL_ENTRY( 0x006e, NtOpenKeyedEvent, 12 ) \
+-    SYSCALL_ENTRY( 0x006f, NtOpenMutant, 12 ) \
+-    SYSCALL_ENTRY( 0x0070, NtOpenProcess, 16 ) \
+-    SYSCALL_ENTRY( 0x0071, NtOpenProcessToken, 12 ) \
+-    SYSCALL_ENTRY( 0x0072, NtOpenProcessTokenEx, 16 ) \
+-    SYSCALL_ENTRY( 0x0073, NtOpenSection, 12 ) \
+-    SYSCALL_ENTRY( 0x0074, NtOpenSemaphore, 12 ) \
+-    SYSCALL_ENTRY( 0x0075, NtOpenSymbolicLinkObject, 12 ) \
+-    SYSCALL_ENTRY( 0x0076, NtOpenThread, 16 ) \
+-    SYSCALL_ENTRY( 0x0077, NtOpenThreadToken, 16 ) \
+-    SYSCALL_ENTRY( 0x0078, NtOpenThreadTokenEx, 20 ) \
+-    SYSCALL_ENTRY( 0x0079, NtOpenTimer, 12 ) \
+-    SYSCALL_ENTRY( 0x007a, NtPowerInformation, 20 ) \
+-    SYSCALL_ENTRY( 0x007b, NtPrivilegeCheck, 12 ) \
+-    SYSCALL_ENTRY( 0x007c, NtProtectVirtualMemory, 20 ) \
+-    SYSCALL_ENTRY( 0x007d, NtPulseEvent, 8 ) \
+-    SYSCALL_ENTRY( 0x007e, NtQueryAttributesFile, 8 ) \
+-    SYSCALL_ENTRY( 0x007f, NtQueryDefaultLocale, 8 ) \
+-    SYSCALL_ENTRY( 0x0080, NtQueryDefaultUILanguage, 4 ) \
+-    SYSCALL_ENTRY( 0x0081, NtQueryDirectoryFile, 44 ) \
+-    SYSCALL_ENTRY( 0x0082, NtQueryDirectoryObject, 28 ) \
+-    SYSCALL_ENTRY( 0x0083, NtQueryEaFile, 36 ) \
+-    SYSCALL_ENTRY( 0x0084, NtQueryEvent, 20 ) \
+-    SYSCALL_ENTRY( 0x0085, NtQueryFullAttributesFile, 8 ) \
+-    SYSCALL_ENTRY( 0x0086, NtQueryInformationAtom, 20 ) \
+-    SYSCALL_ENTRY( 0x0087, NtQueryInformationFile, 20 ) \
+-    SYSCALL_ENTRY( 0x0088, NtQueryInformationJobObject, 20 ) \
+-    SYSCALL_ENTRY( 0x0089, NtQueryInformationProcess, 20 ) \
+-    SYSCALL_ENTRY( 0x008a, NtQueryInformationThread, 20 ) \
+-    SYSCALL_ENTRY( 0x008b, NtQueryInformationToken, 20 ) \
+-    SYSCALL_ENTRY( 0x008c, NtQueryInstallUILanguage, 4 ) \
+-    SYSCALL_ENTRY( 0x008d, NtQueryIoCompletion, 20 ) \
+-    SYSCALL_ENTRY( 0x008e, NtQueryKey, 20 ) \
+-    SYSCALL_ENTRY( 0x008f, NtQueryLicenseValue, 20 ) \
+-    SYSCALL_ENTRY( 0x0090, NtQueryMultipleValueKey, 24 ) \
+-    SYSCALL_ENTRY( 0x0091, NtQueryMutant, 20 ) \
+-    SYSCALL_ENTRY( 0x0092, NtQueryObject, 20 ) \
+-    SYSCALL_ENTRY( 0x0093, NtQueryPerformanceCounter, 8 ) \
+-    SYSCALL_ENTRY( 0x0094, NtQuerySection, 20 ) \
+-    SYSCALL_ENTRY( 0x0095, NtQuerySecurityObject, 20 ) \
+-    SYSCALL_ENTRY( 0x0096, NtQuerySemaphore, 20 ) \
+-    SYSCALL_ENTRY( 0x0097, NtQuerySymbolicLinkObject, 12 ) \
+-    SYSCALL_ENTRY( 0x0098, NtQuerySystemEnvironmentValue, 16 ) \
+-    SYSCALL_ENTRY( 0x0099, NtQuerySystemEnvironmentValueEx, 20 ) \
+-    SYSCALL_ENTRY( 0x009a, NtQuerySystemInformation, 16 ) \
+-    SYSCALL_ENTRY( 0x009b, NtQuerySystemInformationEx, 24 ) \
+-    SYSCALL_ENTRY( 0x009c, NtQuerySystemTime, 4 ) \
+-    SYSCALL_ENTRY( 0x009d, NtQueryTimer, 20 ) \
+-    SYSCALL_ENTRY( 0x009e, NtQueryTimerResolution, 12 ) \
+-    SYSCALL_ENTRY( 0x009f, NtQueryValueKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00a0, NtQueryVirtualMemory, 24 ) \
+-    SYSCALL_ENTRY( 0x00a1, NtQueryVolumeInformationFile, 20 ) \
+-    SYSCALL_ENTRY( 0x00a2, NtQueueApcThread, 20 ) \
+-    SYSCALL_ENTRY( 0x00a3, NtQueueApcThreadEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00a4, NtRaiseException, 12 ) \
+-    SYSCALL_ENTRY( 0x00a5, NtRaiseHardError, 24 ) \
+-    SYSCALL_ENTRY( 0x00a6, NtReadFile, 36 ) \
+-    SYSCALL_ENTRY( 0x00a7, NtReadFileScatter, 36 ) \
+-    SYSCALL_ENTRY( 0x00a8, NtReadVirtualMemory, 20 ) \
+-    SYSCALL_ENTRY( 0x00a9, NtRegisterThreadTerminatePort, 4 ) \
+-    SYSCALL_ENTRY( 0x00aa, NtReleaseKeyedEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00ab, NtReleaseMutant, 8 ) \
+-    SYSCALL_ENTRY( 0x00ac, NtReleaseSemaphore, 12 ) \
+-    SYSCALL_ENTRY( 0x00ad, NtRemoveIoCompletion, 20 ) \
+-    SYSCALL_ENTRY( 0x00ae, NtRemoveIoCompletionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00af, NtRemoveProcessDebug, 8 ) \
+-    SYSCALL_ENTRY( 0x00b0, NtRenameKey, 8 ) \
+-    SYSCALL_ENTRY( 0x00b1, NtReplaceKey, 12 ) \
+-    SYSCALL_ENTRY( 0x00b2, NtReplyWaitReceivePort, 16 ) \
+-    SYSCALL_ENTRY( 0x00b3, NtRequestWaitReplyPort, 12 ) \
+-    SYSCALL_ENTRY( 0x00b4, NtResetEvent, 8 ) \
+-    SYSCALL_ENTRY( 0x00b5, NtResetWriteWatch, 12 ) \
+-    SYSCALL_ENTRY( 0x00b6, NtRestoreKey, 12 ) \
+-    SYSCALL_ENTRY( 0x00b7, NtResumeProcess, 4 ) \
+-    SYSCALL_ENTRY( 0x00b8, NtResumeThread, 8 ) \
+-    SYSCALL_ENTRY( 0x00b9, NtRollbackTransaction, 8 ) \
+-    SYSCALL_ENTRY( 0x00ba, NtSaveKey, 8 ) \
+-    SYSCALL_ENTRY( 0x00bb, NtSecureConnectPort, 36 ) \
+-    SYSCALL_ENTRY( 0x00bc, NtSetContextThread, 8 ) \
+-    SYSCALL_ENTRY( 0x00bd, NtSetDebugFilterState, 12 ) \
+-    SYSCALL_ENTRY( 0x00be, NtSetDefaultLocale, 8 ) \
+-    SYSCALL_ENTRY( 0x00bf, NtSetDefaultUILanguage, 4 ) \
+-    SYSCALL_ENTRY( 0x00c0, NtSetEaFile, 16 ) \
+-    SYSCALL_ENTRY( 0x00c1, NtSetEvent, 8 ) \
+-    SYSCALL_ENTRY( 0x00c2, NtSetInformationDebugObject, 20 ) \
+-    SYSCALL_ENTRY( 0x00c3, NtSetInformationFile, 20 ) \
+-    SYSCALL_ENTRY( 0x00c4, NtSetInformationJobObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00c5, NtSetInformationKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00c6, NtSetInformationObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00c7, NtSetInformationProcess, 16 ) \
+-    SYSCALL_ENTRY( 0x00c8, NtSetInformationThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00c9, NtSetInformationToken, 16 ) \
+-    SYSCALL_ENTRY( 0x00ca, NtSetInformationVirtualMemory, 24 ) \
+-    SYSCALL_ENTRY( 0x00cb, NtSetIntervalProfile, 8 ) \
+-    SYSCALL_ENTRY( 0x00cc, NtSetIoCompletion, 20 ) \
+-    SYSCALL_ENTRY( 0x00cd, NtSetIoCompletionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00ce, NtSetLdtEntries, 24 ) \
+-    SYSCALL_ENTRY( 0x00cf, NtSetSecurityObject, 12 ) \
+-    SYSCALL_ENTRY( 0x00d0, NtSetSystemInformation, 12 ) \
+-    SYSCALL_ENTRY( 0x00d1, NtSetSystemTime, 8 ) \
+-    SYSCALL_ENTRY( 0x00d2, NtSetThreadExecutionState, 8 ) \
+-    SYSCALL_ENTRY( 0x00d3, NtSetTimer, 28 ) \
+-    SYSCALL_ENTRY( 0x00d4, NtSetTimerResolution, 12 ) \
+-    SYSCALL_ENTRY( 0x00d5, NtSetValueKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00d6, NtSetVolumeInformationFile, 20 ) \
+-    SYSCALL_ENTRY( 0x00d7, NtShutdownSystem, 4 ) \
+-    SYSCALL_ENTRY( 0x00d8, NtSignalAndWaitForSingleObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00d9, NtSuspendProcess, 4 ) \
+-    SYSCALL_ENTRY( 0x00da, NtSuspendThread, 8 ) \
+-    SYSCALL_ENTRY( 0x00db, NtSystemDebugControl, 24 ) \
+-    SYSCALL_ENTRY( 0x00dc, NtTerminateJobObject, 8 ) \
+-    SYSCALL_ENTRY( 0x00dd, NtTerminateProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x00de, NtTerminateThread, 8 ) \
+-    SYSCALL_ENTRY( 0x00df, NtTestAlert, 0 ) \
+-    SYSCALL_ENTRY( 0x00e0, NtTraceControl, 24 ) \
+-    SYSCALL_ENTRY( 0x00e1, NtUnloadDriver, 4 ) \
+-    SYSCALL_ENTRY( 0x00e2, NtUnloadKey, 4 ) \
+-    SYSCALL_ENTRY( 0x00e3, NtUnlockFile, 20 ) \
+-    SYSCALL_ENTRY( 0x00e4, NtUnlockVirtualMemory, 16 ) \
+-    SYSCALL_ENTRY( 0x00e5, NtUnmapViewOfSection, 8 ) \
+-    SYSCALL_ENTRY( 0x00e6, NtUnmapViewOfSectionEx, 12 ) \
+-    SYSCALL_ENTRY( 0x00e7, NtWaitForAlertByThreadId, 8 ) \
+-    SYSCALL_ENTRY( 0x00e8, NtWaitForDebugEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00e9, NtWaitForKeyedEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00ea, NtWaitForMultipleObjects, 20 ) \
+-    SYSCALL_ENTRY( 0x00eb, NtWaitForSingleObject, 12 ) \
+-    SYSCALL_ENTRY( 0x00ec, NtWow64AllocateVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x00ed, NtWow64GetNativeSystemInformation, 16 ) \
+-    SYSCALL_ENTRY( 0x00ee, NtWow64IsProcessorFeaturePresent, 4 ) \
+-    SYSCALL_ENTRY( 0x00ef, NtWow64QueryInformationProcess64, 20 ) \
+-    SYSCALL_ENTRY( 0x00f0, NtWow64ReadVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x00f1, NtWow64WriteVirtualMemory64, 28 ) \
+-    SYSCALL_ENTRY( 0x00f2, NtWriteFile, 36 ) \
+-    SYSCALL_ENTRY( 0x00f3, NtWriteFileGather, 36 ) \
+-    SYSCALL_ENTRY( 0x00f4, NtWriteVirtualMemory, 20 ) \
+-    SYSCALL_ENTRY( 0x00f5, NtYieldExecution, 0 ) \
+-    SYSCALL_ENTRY( 0x00f6, wine_nt_to_unix_file_name, 16 ) \
+-    SYSCALL_ENTRY( 0x00f7, wine_unix_to_nt_file_name, 12 )
++    SYSCALL_ENTRY( 0x0050, NtGetCurrentProcessorNumberEx, 4 ) \
++    SYSCALL_ENTRY( 0x0051, NtGetNextThread, 24 ) \
++    SYSCALL_ENTRY( 0x0052, NtGetNlsSectionPtr, 20 ) \
++    SYSCALL_ENTRY( 0x0053, NtGetWriteWatch, 28 ) \
++    SYSCALL_ENTRY( 0x0054, NtImpersonateAnonymousToken, 4 ) \
++    SYSCALL_ENTRY( 0x0055, NtInitializeNlsFiles, 12 ) \
++    SYSCALL_ENTRY( 0x0056, NtInitiatePowerAction, 16 ) \
++    SYSCALL_ENTRY( 0x0057, NtIsProcessInJob, 8 ) \
++    SYSCALL_ENTRY( 0x0058, NtListenPort, 8 ) \
++    SYSCALL_ENTRY( 0x0059, NtLoadDriver, 4 ) \
++    SYSCALL_ENTRY( 0x005a, NtLoadKey, 8 ) \
++    SYSCALL_ENTRY( 0x005b, NtLoadKey2, 12 ) \
++    SYSCALL_ENTRY( 0x005c, NtLoadKeyEx, 32 ) \
++    SYSCALL_ENTRY( 0x005d, NtLockFile, 40 ) \
++    SYSCALL_ENTRY( 0x005e, NtLockVirtualMemory, 16 ) \
++    SYSCALL_ENTRY( 0x005f, NtMakePermanentObject, 4 ) \
++    SYSCALL_ENTRY( 0x0060, NtMakeTemporaryObject, 4 ) \
++    SYSCALL_ENTRY( 0x0061, NtMapViewOfSection, 40 ) \
++    SYSCALL_ENTRY( 0x0062, NtMapViewOfSectionEx, 36 ) \
++    SYSCALL_ENTRY( 0x0063, NtNotifyChangeDirectoryFile, 36 ) \
++    SYSCALL_ENTRY( 0x0064, NtNotifyChangeKey, 40 ) \
++    SYSCALL_ENTRY( 0x0065, NtNotifyChangeMultipleKeys, 48 ) \
++    SYSCALL_ENTRY( 0x0066, NtOpenDirectoryObject, 12 ) \
++    SYSCALL_ENTRY( 0x0067, NtOpenEvent, 12 ) \
++    SYSCALL_ENTRY( 0x0068, NtOpenFile, 24 ) \
++    SYSCALL_ENTRY( 0x0069, NtOpenIoCompletion, 12 ) \
++    SYSCALL_ENTRY( 0x006a, NtOpenJobObject, 12 ) \
++    SYSCALL_ENTRY( 0x006b, NtOpenKey, 12 ) \
++    SYSCALL_ENTRY( 0x006c, NtOpenKeyEx, 16 ) \
++    SYSCALL_ENTRY( 0x006d, NtOpenKeyTransacted, 16 ) \
++    SYSCALL_ENTRY( 0x006e, NtOpenKeyTransactedEx, 20 ) \
++    SYSCALL_ENTRY( 0x006f, NtOpenKeyedEvent, 12 ) \
++    SYSCALL_ENTRY( 0x0070, NtOpenMutant, 12 ) \
++    SYSCALL_ENTRY( 0x0071, NtOpenProcess, 16 ) \
++    SYSCALL_ENTRY( 0x0072, NtOpenProcessToken, 12 ) \
++    SYSCALL_ENTRY( 0x0073, NtOpenProcessTokenEx, 16 ) \
++    SYSCALL_ENTRY( 0x0074, NtOpenSection, 12 ) \
++    SYSCALL_ENTRY( 0x0075, NtOpenSemaphore, 12 ) \
++    SYSCALL_ENTRY( 0x0076, NtOpenSymbolicLinkObject, 12 ) \
++    SYSCALL_ENTRY( 0x0077, NtOpenThread, 16 ) \
++    SYSCALL_ENTRY( 0x0078, NtOpenThreadToken, 16 ) \
++    SYSCALL_ENTRY( 0x0079, NtOpenThreadTokenEx, 20 ) \
++    SYSCALL_ENTRY( 0x007a, NtOpenTimer, 12 ) \
++    SYSCALL_ENTRY( 0x007b, NtPowerInformation, 20 ) \
++    SYSCALL_ENTRY( 0x007c, NtPrivilegeCheck, 12 ) \
++    SYSCALL_ENTRY( 0x007d, NtProtectVirtualMemory, 20 ) \
++    SYSCALL_ENTRY( 0x007e, NtPulseEvent, 8 ) \
++    SYSCALL_ENTRY( 0x007f, NtQueryAttributesFile, 8 ) \
++    SYSCALL_ENTRY( 0x0080, NtQueryDefaultLocale, 8 ) \
++    SYSCALL_ENTRY( 0x0081, NtQueryDefaultUILanguage, 4 ) \
++    SYSCALL_ENTRY( 0x0082, NtQueryDirectoryFile, 44 ) \
++    SYSCALL_ENTRY( 0x0083, NtQueryDirectoryObject, 28 ) \
++    SYSCALL_ENTRY( 0x0084, NtQueryEaFile, 36 ) \
++    SYSCALL_ENTRY( 0x0085, NtQueryEvent, 20 ) \
++    SYSCALL_ENTRY( 0x0086, NtQueryFullAttributesFile, 8 ) \
++    SYSCALL_ENTRY( 0x0087, NtQueryInformationAtom, 20 ) \
++    SYSCALL_ENTRY( 0x0088, NtQueryInformationFile, 20 ) \
++    SYSCALL_ENTRY( 0x0089, NtQueryInformationJobObject, 20 ) \
++    SYSCALL_ENTRY( 0x008a, NtQueryInformationProcess, 20 ) \
++    SYSCALL_ENTRY( 0x008b, NtQueryInformationThread, 20 ) \
++    SYSCALL_ENTRY( 0x008c, NtQueryInformationToken, 20 ) \
++    SYSCALL_ENTRY( 0x008d, NtQueryInstallUILanguage, 4 ) \
++    SYSCALL_ENTRY( 0x008e, NtQueryIoCompletion, 20 ) \
++    SYSCALL_ENTRY( 0x008f, NtQueryKey, 20 ) \
++    SYSCALL_ENTRY( 0x0090, NtQueryLicenseValue, 20 ) \
++    SYSCALL_ENTRY( 0x0091, NtQueryMultipleValueKey, 24 ) \
++    SYSCALL_ENTRY( 0x0092, NtQueryMutant, 20 ) \
++    SYSCALL_ENTRY( 0x0093, NtQueryObject, 20 ) \
++    SYSCALL_ENTRY( 0x0094, NtQueryPerformanceCounter, 8 ) \
++    SYSCALL_ENTRY( 0x0095, NtQuerySection, 20 ) \
++    SYSCALL_ENTRY( 0x0096, NtQuerySecurityObject, 20 ) \
++    SYSCALL_ENTRY( 0x0097, NtQuerySemaphore, 20 ) \
++    SYSCALL_ENTRY( 0x0098, NtQuerySymbolicLinkObject, 12 ) \
++    SYSCALL_ENTRY( 0x0099, NtQuerySystemEnvironmentValue, 16 ) \
++    SYSCALL_ENTRY( 0x009a, NtQuerySystemEnvironmentValueEx, 20 ) \
++    SYSCALL_ENTRY( 0x009b, NtQuerySystemInformation, 16 ) \
++    SYSCALL_ENTRY( 0x009c, NtQuerySystemInformationEx, 24 ) \
++    SYSCALL_ENTRY( 0x009d, NtQuerySystemTime, 4 ) \
++    SYSCALL_ENTRY( 0x009e, NtQueryTimer, 20 ) \
++    SYSCALL_ENTRY( 0x009f, NtQueryTimerResolution, 12 ) \
++    SYSCALL_ENTRY( 0x00a0, NtQueryValueKey, 24 ) \
++    SYSCALL_ENTRY( 0x00a1, NtQueryVirtualMemory, 24 ) \
++    SYSCALL_ENTRY( 0x00a2, NtQueryVolumeInformationFile, 20 ) \
++    SYSCALL_ENTRY( 0x00a3, NtQueueApcThread, 20 ) \
++    SYSCALL_ENTRY( 0x00a4, NtQueueApcThreadEx, 24 ) \
++    SYSCALL_ENTRY( 0x00a5, NtRaiseException, 12 ) \
++    SYSCALL_ENTRY( 0x00a6, NtRaiseHardError, 24 ) \
++    SYSCALL_ENTRY( 0x00a7, NtReadFile, 36 ) \
++    SYSCALL_ENTRY( 0x00a8, NtReadFileScatter, 36 ) \
++    SYSCALL_ENTRY( 0x00a9, NtReadVirtualMemory, 20 ) \
++    SYSCALL_ENTRY( 0x00aa, NtRegisterThreadTerminatePort, 4 ) \
++    SYSCALL_ENTRY( 0x00ab, NtReleaseKeyedEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00ac, NtReleaseMutant, 8 ) \
++    SYSCALL_ENTRY( 0x00ad, NtReleaseSemaphore, 12 ) \
++    SYSCALL_ENTRY( 0x00ae, NtRemoveIoCompletion, 20 ) \
++    SYSCALL_ENTRY( 0x00af, NtRemoveIoCompletionEx, 24 ) \
++    SYSCALL_ENTRY( 0x00b0, NtRemoveProcessDebug, 8 ) \
++    SYSCALL_ENTRY( 0x00b1, NtRenameKey, 8 ) \
++    SYSCALL_ENTRY( 0x00b2, NtReplaceKey, 12 ) \
++    SYSCALL_ENTRY( 0x00b3, NtReplyWaitReceivePort, 16 ) \
++    SYSCALL_ENTRY( 0x00b4, NtRequestWaitReplyPort, 12 ) \
++    SYSCALL_ENTRY( 0x00b5, NtResetEvent, 8 ) \
++    SYSCALL_ENTRY( 0x00b6, NtResetWriteWatch, 12 ) \
++    SYSCALL_ENTRY( 0x00b7, NtRestoreKey, 12 ) \
++    SYSCALL_ENTRY( 0x00b8, NtResumeProcess, 4 ) \
++    SYSCALL_ENTRY( 0x00b9, NtResumeThread, 8 ) \
++    SYSCALL_ENTRY( 0x00ba, NtRollbackTransaction, 8 ) \
++    SYSCALL_ENTRY( 0x00bb, NtSaveKey, 8 ) \
++    SYSCALL_ENTRY( 0x00bc, NtSecureConnectPort, 36 ) \
++    SYSCALL_ENTRY( 0x00bd, NtSetContextThread, 8 ) \
++    SYSCALL_ENTRY( 0x00be, NtSetDebugFilterState, 12 ) \
++    SYSCALL_ENTRY( 0x00bf, NtSetDefaultLocale, 8 ) \
++    SYSCALL_ENTRY( 0x00c0, NtSetDefaultUILanguage, 4 ) \
++    SYSCALL_ENTRY( 0x00c1, NtSetEaFile, 16 ) \
++    SYSCALL_ENTRY( 0x00c2, NtSetEvent, 8 ) \
++    SYSCALL_ENTRY( 0x00c3, NtSetInformationDebugObject, 20 ) \
++    SYSCALL_ENTRY( 0x00c4, NtSetInformationFile, 20 ) \
++    SYSCALL_ENTRY( 0x00c5, NtSetInformationJobObject, 16 ) \
++    SYSCALL_ENTRY( 0x00c6, NtSetInformationKey, 16 ) \
++    SYSCALL_ENTRY( 0x00c7, NtSetInformationObject, 16 ) \
++    SYSCALL_ENTRY( 0x00c8, NtSetInformationProcess, 16 ) \
++    SYSCALL_ENTRY( 0x00c9, NtSetInformationThread, 16 ) \
++    SYSCALL_ENTRY( 0x00ca, NtSetInformationToken, 16 ) \
++    SYSCALL_ENTRY( 0x00cb, NtSetInformationVirtualMemory, 24 ) \
++    SYSCALL_ENTRY( 0x00cc, NtSetIntervalProfile, 8 ) \
++    SYSCALL_ENTRY( 0x00cd, NtSetIoCompletion, 20 ) \
++    SYSCALL_ENTRY( 0x00ce, NtSetIoCompletionEx, 24 ) \
++    SYSCALL_ENTRY( 0x00cf, NtSetLdtEntries, 24 ) \
++    SYSCALL_ENTRY( 0x00d0, NtSetSecurityObject, 12 ) \
++    SYSCALL_ENTRY( 0x00d1, NtSetSystemInformation, 12 ) \
++    SYSCALL_ENTRY( 0x00d2, NtSetSystemTime, 8 ) \
++    SYSCALL_ENTRY( 0x00d3, NtSetThreadExecutionState, 8 ) \
++    SYSCALL_ENTRY( 0x00d4, NtSetTimer, 28 ) \
++    SYSCALL_ENTRY( 0x00d5, NtSetTimerResolution, 12 ) \
++    SYSCALL_ENTRY( 0x00d6, NtSetValueKey, 24 ) \
++    SYSCALL_ENTRY( 0x00d7, NtSetVolumeInformationFile, 20 ) \
++    SYSCALL_ENTRY( 0x00d8, NtShutdownSystem, 4 ) \
++    SYSCALL_ENTRY( 0x00d9, NtSignalAndWaitForSingleObject, 16 ) \
++    SYSCALL_ENTRY( 0x00da, NtSuspendProcess, 4 ) \
++    SYSCALL_ENTRY( 0x00db, NtSuspendThread, 8 ) \
++    SYSCALL_ENTRY( 0x00dc, NtSystemDebugControl, 24 ) \
++    SYSCALL_ENTRY( 0x00dd, NtTerminateJobObject, 8 ) \
++    SYSCALL_ENTRY( 0x00de, NtTerminateProcess, 8 ) \
++    SYSCALL_ENTRY( 0x00df, NtTerminateThread, 8 ) \
++    SYSCALL_ENTRY( 0x00e0, NtTestAlert, 0 ) \
++    SYSCALL_ENTRY( 0x00e1, NtTraceControl, 24 ) \
++    SYSCALL_ENTRY( 0x00e2, NtUnloadDriver, 4 ) \
++    SYSCALL_ENTRY( 0x00e3, NtUnloadKey, 4 ) \
++    SYSCALL_ENTRY( 0x00e4, NtUnlockFile, 20 ) \
++    SYSCALL_ENTRY( 0x00e5, NtUnlockVirtualMemory, 16 ) \
++    SYSCALL_ENTRY( 0x00e6, NtUnmapViewOfSection, 8 ) \
++    SYSCALL_ENTRY( 0x00e7, NtUnmapViewOfSectionEx, 12 ) \
++    SYSCALL_ENTRY( 0x00e8, NtWaitForAlertByThreadId, 8 ) \
++    SYSCALL_ENTRY( 0x00e9, NtWaitForDebugEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00ea, NtWaitForKeyedEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00eb, NtWaitForMultipleObjects, 20 ) \
++    SYSCALL_ENTRY( 0x00ec, NtWaitForSingleObject, 12 ) \
++    SYSCALL_ENTRY( 0x00ed, NtWow64AllocateVirtualMemory64, 28 ) \
++    SYSCALL_ENTRY( 0x00ee, NtWow64GetNativeSystemInformation, 16 ) \
++    SYSCALL_ENTRY( 0x00ef, NtWow64IsProcessorFeaturePresent, 4 ) \
++    SYSCALL_ENTRY( 0x00f0, NtWow64QueryInformationProcess64, 20 ) \
++    SYSCALL_ENTRY( 0x00f1, NtWow64ReadVirtualMemory64, 28 ) \
++    SYSCALL_ENTRY( 0x00f2, NtWow64WriteVirtualMemory64, 28 ) \
++    SYSCALL_ENTRY( 0x00f3, NtWriteFile, 36 ) \
++    SYSCALL_ENTRY( 0x00f4, NtWriteFileGather, 36 ) \
++    SYSCALL_ENTRY( 0x00f5, NtWriteVirtualMemory, 20 ) \
++    SYSCALL_ENTRY( 0x00f6, NtYieldExecution, 0 ) \
++    SYSCALL_ENTRY( 0x00f7, wine_nt_to_unix_file_name, 16 ) \
++    SYSCALL_ENTRY( 0x00f8, wine_unix_to_nt_file_name, 12 )
+ 
+ #define ALL_SYSCALLS64 \
+     SYSCALL_ENTRY( 0x0000, NtAcceptConnectPort, 48 ) \
+@@ -331,165 +332,166 @@
+     SYSCALL_ENTRY( 0x004d, NtFsControlFile, 80 ) \
+     SYSCALL_ENTRY( 0x004e, NtGetContextThread, 16 ) \
+     SYSCALL_ENTRY( 0x004f, NtGetCurrentProcessorNumber, 0 ) \
+-    SYSCALL_ENTRY( 0x0050, NtGetNextThread, 48 ) \
+-    SYSCALL_ENTRY( 0x0051, NtGetNlsSectionPtr, 40 ) \
+-    SYSCALL_ENTRY( 0x0052, NtGetWriteWatch, 56 ) \
+-    SYSCALL_ENTRY( 0x0053, NtImpersonateAnonymousToken, 8 ) \
+-    SYSCALL_ENTRY( 0x0054, NtInitializeNlsFiles, 24 ) \
+-    SYSCALL_ENTRY( 0x0055, NtInitiatePowerAction, 32 ) \
+-    SYSCALL_ENTRY( 0x0056, NtIsProcessInJob, 16 ) \
+-    SYSCALL_ENTRY( 0x0057, NtListenPort, 16 ) \
+-    SYSCALL_ENTRY( 0x0058, NtLoadDriver, 8 ) \
+-    SYSCALL_ENTRY( 0x0059, NtLoadKey, 16 ) \
+-    SYSCALL_ENTRY( 0x005a, NtLoadKey2, 24 ) \
+-    SYSCALL_ENTRY( 0x005b, NtLoadKeyEx, 64 ) \
+-    SYSCALL_ENTRY( 0x005c, NtLockFile, 80 ) \
+-    SYSCALL_ENTRY( 0x005d, NtLockVirtualMemory, 32 ) \
+-    SYSCALL_ENTRY( 0x005e, NtMakePermanentObject, 8 ) \
+-    SYSCALL_ENTRY( 0x005f, NtMakeTemporaryObject, 8 ) \
+-    SYSCALL_ENTRY( 0x0060, NtMapViewOfSection, 80 ) \
+-    SYSCALL_ENTRY( 0x0061, NtMapViewOfSectionEx, 72 ) \
+-    SYSCALL_ENTRY( 0x0062, NtNotifyChangeDirectoryFile, 72 ) \
+-    SYSCALL_ENTRY( 0x0063, NtNotifyChangeKey, 80 ) \
+-    SYSCALL_ENTRY( 0x0064, NtNotifyChangeMultipleKeys, 96 ) \
+-    SYSCALL_ENTRY( 0x0065, NtOpenDirectoryObject, 24 ) \
+-    SYSCALL_ENTRY( 0x0066, NtOpenEvent, 24 ) \
+-    SYSCALL_ENTRY( 0x0067, NtOpenFile, 48 ) \
+-    SYSCALL_ENTRY( 0x0068, NtOpenIoCompletion, 24 ) \
+-    SYSCALL_ENTRY( 0x0069, NtOpenJobObject, 24 ) \
+-    SYSCALL_ENTRY( 0x006a, NtOpenKey, 24 ) \
+-    SYSCALL_ENTRY( 0x006b, NtOpenKeyEx, 32 ) \
+-    SYSCALL_ENTRY( 0x006c, NtOpenKeyTransacted, 32 ) \
+-    SYSCALL_ENTRY( 0x006d, NtOpenKeyTransactedEx, 40 ) \
+-    SYSCALL_ENTRY( 0x006e, NtOpenKeyedEvent, 24 ) \
+-    SYSCALL_ENTRY( 0x006f, NtOpenMutant, 24 ) \
+-    SYSCALL_ENTRY( 0x0070, NtOpenProcess, 32 ) \
+-    SYSCALL_ENTRY( 0x0071, NtOpenProcessToken, 24 ) \
+-    SYSCALL_ENTRY( 0x0072, NtOpenProcessTokenEx, 32 ) \
+-    SYSCALL_ENTRY( 0x0073, NtOpenSection, 24 ) \
+-    SYSCALL_ENTRY( 0x0074, NtOpenSemaphore, 24 ) \
+-    SYSCALL_ENTRY( 0x0075, NtOpenSymbolicLinkObject, 24 ) \
+-    SYSCALL_ENTRY( 0x0076, NtOpenThread, 32 ) \
+-    SYSCALL_ENTRY( 0x0077, NtOpenThreadToken, 32 ) \
+-    SYSCALL_ENTRY( 0x0078, NtOpenThreadTokenEx, 40 ) \
+-    SYSCALL_ENTRY( 0x0079, NtOpenTimer, 24 ) \
+-    SYSCALL_ENTRY( 0x007a, NtPowerInformation, 40 ) \
+-    SYSCALL_ENTRY( 0x007b, NtPrivilegeCheck, 24 ) \
+-    SYSCALL_ENTRY( 0x007c, NtProtectVirtualMemory, 40 ) \
+-    SYSCALL_ENTRY( 0x007d, NtPulseEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x007e, NtQueryAttributesFile, 16 ) \
+-    SYSCALL_ENTRY( 0x007f, NtQueryDefaultLocale, 16 ) \
+-    SYSCALL_ENTRY( 0x0080, NtQueryDefaultUILanguage, 8 ) \
+-    SYSCALL_ENTRY( 0x0081, NtQueryDirectoryFile, 88 ) \
+-    SYSCALL_ENTRY( 0x0082, NtQueryDirectoryObject, 56 ) \
+-    SYSCALL_ENTRY( 0x0083, NtQueryEaFile, 72 ) \
+-    SYSCALL_ENTRY( 0x0084, NtQueryEvent, 40 ) \
+-    SYSCALL_ENTRY( 0x0085, NtQueryFullAttributesFile, 16 ) \
+-    SYSCALL_ENTRY( 0x0086, NtQueryInformationAtom, 40 ) \
+-    SYSCALL_ENTRY( 0x0087, NtQueryInformationFile, 40 ) \
+-    SYSCALL_ENTRY( 0x0088, NtQueryInformationJobObject, 40 ) \
+-    SYSCALL_ENTRY( 0x0089, NtQueryInformationProcess, 40 ) \
+-    SYSCALL_ENTRY( 0x008a, NtQueryInformationThread, 40 ) \
+-    SYSCALL_ENTRY( 0x008b, NtQueryInformationToken, 40 ) \
+-    SYSCALL_ENTRY( 0x008c, NtQueryInstallUILanguage, 8 ) \
+-    SYSCALL_ENTRY( 0x008d, NtQueryIoCompletion, 40 ) \
+-    SYSCALL_ENTRY( 0x008e, NtQueryKey, 40 ) \
+-    SYSCALL_ENTRY( 0x008f, NtQueryLicenseValue, 40 ) \
+-    SYSCALL_ENTRY( 0x0090, NtQueryMultipleValueKey, 48 ) \
+-    SYSCALL_ENTRY( 0x0091, NtQueryMutant, 40 ) \
+-    SYSCALL_ENTRY( 0x0092, NtQueryObject, 40 ) \
+-    SYSCALL_ENTRY( 0x0093, NtQueryPerformanceCounter, 16 ) \
+-    SYSCALL_ENTRY( 0x0094, NtQuerySection, 40 ) \
+-    SYSCALL_ENTRY( 0x0095, NtQuerySecurityObject, 40 ) \
+-    SYSCALL_ENTRY( 0x0096, NtQuerySemaphore, 40 ) \
+-    SYSCALL_ENTRY( 0x0097, NtQuerySymbolicLinkObject, 24 ) \
+-    SYSCALL_ENTRY( 0x0098, NtQuerySystemEnvironmentValue, 32 ) \
+-    SYSCALL_ENTRY( 0x0099, NtQuerySystemEnvironmentValueEx, 40 ) \
+-    SYSCALL_ENTRY( 0x009a, NtQuerySystemInformation, 32 ) \
+-    SYSCALL_ENTRY( 0x009b, NtQuerySystemInformationEx, 48 ) \
+-    SYSCALL_ENTRY( 0x009c, NtQuerySystemTime, 8 ) \
+-    SYSCALL_ENTRY( 0x009d, NtQueryTimer, 40 ) \
+-    SYSCALL_ENTRY( 0x009e, NtQueryTimerResolution, 24 ) \
+-    SYSCALL_ENTRY( 0x009f, NtQueryValueKey, 48 ) \
+-    SYSCALL_ENTRY( 0x00a0, NtQueryVirtualMemory, 48 ) \
+-    SYSCALL_ENTRY( 0x00a1, NtQueryVolumeInformationFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00a2, NtQueueApcThread, 40 ) \
+-    SYSCALL_ENTRY( 0x00a3, NtQueueApcThreadEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00a4, NtRaiseException, 24 ) \
+-    SYSCALL_ENTRY( 0x00a5, NtRaiseHardError, 48 ) \
+-    SYSCALL_ENTRY( 0x00a6, NtReadFile, 72 ) \
+-    SYSCALL_ENTRY( 0x00a7, NtReadFileScatter, 72 ) \
+-    SYSCALL_ENTRY( 0x00a8, NtReadVirtualMemory, 40 ) \
+-    SYSCALL_ENTRY( 0x00a9, NtRegisterThreadTerminatePort, 8 ) \
+-    SYSCALL_ENTRY( 0x00aa, NtReleaseKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x00ab, NtReleaseMutant, 16 ) \
+-    SYSCALL_ENTRY( 0x00ac, NtReleaseSemaphore, 24 ) \
+-    SYSCALL_ENTRY( 0x00ad, NtRemoveIoCompletion, 40 ) \
+-    SYSCALL_ENTRY( 0x00ae, NtRemoveIoCompletionEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00af, NtRemoveProcessDebug, 16 ) \
+-    SYSCALL_ENTRY( 0x00b0, NtRenameKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00b1, NtReplaceKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00b2, NtReplyWaitReceivePort, 32 ) \
+-    SYSCALL_ENTRY( 0x00b3, NtRequestWaitReplyPort, 24 ) \
+-    SYSCALL_ENTRY( 0x00b4, NtResetEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00b5, NtResetWriteWatch, 24 ) \
+-    SYSCALL_ENTRY( 0x00b6, NtRestoreKey, 24 ) \
+-    SYSCALL_ENTRY( 0x00b7, NtResumeProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x00b8, NtResumeThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00b9, NtRollbackTransaction, 16 ) \
+-    SYSCALL_ENTRY( 0x00ba, NtSaveKey, 16 ) \
+-    SYSCALL_ENTRY( 0x00bb, NtSecureConnectPort, 72 ) \
+-    SYSCALL_ENTRY( 0x00bc, NtSetContextThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00bd, NtSetDebugFilterState, 24 ) \
+-    SYSCALL_ENTRY( 0x00be, NtSetDefaultLocale, 16 ) \
+-    SYSCALL_ENTRY( 0x00bf, NtSetDefaultUILanguage, 8 ) \
+-    SYSCALL_ENTRY( 0x00c0, NtSetEaFile, 32 ) \
+-    SYSCALL_ENTRY( 0x00c1, NtSetEvent, 16 ) \
+-    SYSCALL_ENTRY( 0x00c2, NtSetInformationDebugObject, 40 ) \
+-    SYSCALL_ENTRY( 0x00c3, NtSetInformationFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00c4, NtSetInformationJobObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00c5, NtSetInformationKey, 32 ) \
+-    SYSCALL_ENTRY( 0x00c6, NtSetInformationObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00c7, NtSetInformationProcess, 32 ) \
+-    SYSCALL_ENTRY( 0x00c8, NtSetInformationThread, 32 ) \
+-    SYSCALL_ENTRY( 0x00c9, NtSetInformationToken, 32 ) \
+-    SYSCALL_ENTRY( 0x00ca, NtSetInformationVirtualMemory, 48 ) \
+-    SYSCALL_ENTRY( 0x00cb, NtSetIntervalProfile, 16 ) \
+-    SYSCALL_ENTRY( 0x00cc, NtSetIoCompletion, 40 ) \
+-    SYSCALL_ENTRY( 0x00cd, NtSetIoCompletionEx, 48 ) \
+-    SYSCALL_ENTRY( 0x00ce, NtSetLdtEntries, 32 ) \
+-    SYSCALL_ENTRY( 0x00cf, NtSetSecurityObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00d0, NtSetSystemInformation, 24 ) \
+-    SYSCALL_ENTRY( 0x00d1, NtSetSystemTime, 16 ) \
+-    SYSCALL_ENTRY( 0x00d2, NtSetThreadExecutionState, 16 ) \
+-    SYSCALL_ENTRY( 0x00d3, NtSetTimer, 56 ) \
+-    SYSCALL_ENTRY( 0x00d4, NtSetTimerResolution, 24 ) \
+-    SYSCALL_ENTRY( 0x00d5, NtSetValueKey, 48 ) \
+-    SYSCALL_ENTRY( 0x00d6, NtSetVolumeInformationFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00d7, NtShutdownSystem, 8 ) \
+-    SYSCALL_ENTRY( 0x00d8, NtSignalAndWaitForSingleObject, 32 ) \
+-    SYSCALL_ENTRY( 0x00d9, NtSuspendProcess, 8 ) \
+-    SYSCALL_ENTRY( 0x00da, NtSuspendThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00db, NtSystemDebugControl, 48 ) \
+-    SYSCALL_ENTRY( 0x00dc, NtTerminateJobObject, 16 ) \
+-    SYSCALL_ENTRY( 0x00dd, NtTerminateProcess, 16 ) \
+-    SYSCALL_ENTRY( 0x00de, NtTerminateThread, 16 ) \
+-    SYSCALL_ENTRY( 0x00df, NtTestAlert, 0 ) \
+-    SYSCALL_ENTRY( 0x00e0, NtTraceControl, 48 ) \
+-    SYSCALL_ENTRY( 0x00e1, NtUnloadDriver, 8 ) \
+-    SYSCALL_ENTRY( 0x00e2, NtUnloadKey, 8 ) \
+-    SYSCALL_ENTRY( 0x00e3, NtUnlockFile, 40 ) \
+-    SYSCALL_ENTRY( 0x00e4, NtUnlockVirtualMemory, 32 ) \
+-    SYSCALL_ENTRY( 0x00e5, NtUnmapViewOfSection, 16 ) \
+-    SYSCALL_ENTRY( 0x00e6, NtUnmapViewOfSectionEx, 24 ) \
+-    SYSCALL_ENTRY( 0x00e7, NtWaitForAlertByThreadId, 16 ) \
+-    SYSCALL_ENTRY( 0x00e8, NtWaitForDebugEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x00e9, NtWaitForKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x00ea, NtWaitForMultipleObjects, 40 ) \
+-    SYSCALL_ENTRY( 0x00eb, NtWaitForSingleObject, 24 ) \
+-    SYSCALL_ENTRY( 0x00ec, NtWriteFile, 72 ) \
+-    SYSCALL_ENTRY( 0x00ed, NtWriteFileGather, 72 ) \
+-    SYSCALL_ENTRY( 0x00ee, NtWriteVirtualMemory, 40 ) \
+-    SYSCALL_ENTRY( 0x00ef, NtYieldExecution, 0 ) \
+-    SYSCALL_ENTRY( 0x00f0, wine_nt_to_unix_file_name, 32 ) \
+-    SYSCALL_ENTRY( 0x00f1, wine_unix_to_nt_file_name, 24 )
++    SYSCALL_ENTRY( 0x0050, NtGetCurrentProcessorNumberEx, 8 ) \
++    SYSCALL_ENTRY( 0x0051, NtGetNextThread, 48 ) \
++    SYSCALL_ENTRY( 0x0052, NtGetNlsSectionPtr, 40 ) \
++    SYSCALL_ENTRY( 0x0053, NtGetWriteWatch, 56 ) \
++    SYSCALL_ENTRY( 0x0054, NtImpersonateAnonymousToken, 8 ) \
++    SYSCALL_ENTRY( 0x0055, NtInitializeNlsFiles, 24 ) \
++    SYSCALL_ENTRY( 0x0056, NtInitiatePowerAction, 32 ) \
++    SYSCALL_ENTRY( 0x0057, NtIsProcessInJob, 16 ) \
++    SYSCALL_ENTRY( 0x0058, NtListenPort, 16 ) \
++    SYSCALL_ENTRY( 0x0059, NtLoadDriver, 8 ) \
++    SYSCALL_ENTRY( 0x005a, NtLoadKey, 16 ) \
++    SYSCALL_ENTRY( 0x005b, NtLoadKey2, 24 ) \
++    SYSCALL_ENTRY( 0x005c, NtLoadKeyEx, 64 ) \
++    SYSCALL_ENTRY( 0x005d, NtLockFile, 80 ) \
++    SYSCALL_ENTRY( 0x005e, NtLockVirtualMemory, 32 ) \
++    SYSCALL_ENTRY( 0x005f, NtMakePermanentObject, 8 ) \
++    SYSCALL_ENTRY( 0x0060, NtMakeTemporaryObject, 8 ) \
++    SYSCALL_ENTRY( 0x0061, NtMapViewOfSection, 80 ) \
++    SYSCALL_ENTRY( 0x0062, NtMapViewOfSectionEx, 72 ) \
++    SYSCALL_ENTRY( 0x0063, NtNotifyChangeDirectoryFile, 72 ) \
++    SYSCALL_ENTRY( 0x0064, NtNotifyChangeKey, 80 ) \
++    SYSCALL_ENTRY( 0x0065, NtNotifyChangeMultipleKeys, 96 ) \
++    SYSCALL_ENTRY( 0x0066, NtOpenDirectoryObject, 24 ) \
++    SYSCALL_ENTRY( 0x0067, NtOpenEvent, 24 ) \
++    SYSCALL_ENTRY( 0x0068, NtOpenFile, 48 ) \
++    SYSCALL_ENTRY( 0x0069, NtOpenIoCompletion, 24 ) \
++    SYSCALL_ENTRY( 0x006a, NtOpenJobObject, 24 ) \
++    SYSCALL_ENTRY( 0x006b, NtOpenKey, 24 ) \
++    SYSCALL_ENTRY( 0x006c, NtOpenKeyEx, 32 ) \
++    SYSCALL_ENTRY( 0x006d, NtOpenKeyTransacted, 32 ) \
++    SYSCALL_ENTRY( 0x006e, NtOpenKeyTransactedEx, 40 ) \
++    SYSCALL_ENTRY( 0x006f, NtOpenKeyedEvent, 24 ) \
++    SYSCALL_ENTRY( 0x0070, NtOpenMutant, 24 ) \
++    SYSCALL_ENTRY( 0x0071, NtOpenProcess, 32 ) \
++    SYSCALL_ENTRY( 0x0072, NtOpenProcessToken, 24 ) \
++    SYSCALL_ENTRY( 0x0073, NtOpenProcessTokenEx, 32 ) \
++    SYSCALL_ENTRY( 0x0074, NtOpenSection, 24 ) \
++    SYSCALL_ENTRY( 0x0075, NtOpenSemaphore, 24 ) \
++    SYSCALL_ENTRY( 0x0076, NtOpenSymbolicLinkObject, 24 ) \
++    SYSCALL_ENTRY( 0x0077, NtOpenThread, 32 ) \
++    SYSCALL_ENTRY( 0x0078, NtOpenThreadToken, 32 ) \
++    SYSCALL_ENTRY( 0x0079, NtOpenThreadTokenEx, 40 ) \
++    SYSCALL_ENTRY( 0x007a, NtOpenTimer, 24 ) \
++    SYSCALL_ENTRY( 0x007b, NtPowerInformation, 40 ) \
++    SYSCALL_ENTRY( 0x007c, NtPrivilegeCheck, 24 ) \
++    SYSCALL_ENTRY( 0x007d, NtProtectVirtualMemory, 40 ) \
++    SYSCALL_ENTRY( 0x007e, NtPulseEvent, 16 ) \
++    SYSCALL_ENTRY( 0x007f, NtQueryAttributesFile, 16 ) \
++    SYSCALL_ENTRY( 0x0080, NtQueryDefaultLocale, 16 ) \
++    SYSCALL_ENTRY( 0x0081, NtQueryDefaultUILanguage, 8 ) \
++    SYSCALL_ENTRY( 0x0082, NtQueryDirectoryFile, 88 ) \
++    SYSCALL_ENTRY( 0x0083, NtQueryDirectoryObject, 56 ) \
++    SYSCALL_ENTRY( 0x0084, NtQueryEaFile, 72 ) \
++    SYSCALL_ENTRY( 0x0085, NtQueryEvent, 40 ) \
++    SYSCALL_ENTRY( 0x0086, NtQueryFullAttributesFile, 16 ) \
++    SYSCALL_ENTRY( 0x0087, NtQueryInformationAtom, 40 ) \
++    SYSCALL_ENTRY( 0x0088, NtQueryInformationFile, 40 ) \
++    SYSCALL_ENTRY( 0x0089, NtQueryInformationJobObject, 40 ) \
++    SYSCALL_ENTRY( 0x008a, NtQueryInformationProcess, 40 ) \
++    SYSCALL_ENTRY( 0x008b, NtQueryInformationThread, 40 ) \
++    SYSCALL_ENTRY( 0x008c, NtQueryInformationToken, 40 ) \
++    SYSCALL_ENTRY( 0x008d, NtQueryInstallUILanguage, 8 ) \
++    SYSCALL_ENTRY( 0x008e, NtQueryIoCompletion, 40 ) \
++    SYSCALL_ENTRY( 0x008f, NtQueryKey, 40 ) \
++    SYSCALL_ENTRY( 0x0090, NtQueryLicenseValue, 40 ) \
++    SYSCALL_ENTRY( 0x0091, NtQueryMultipleValueKey, 48 ) \
++    SYSCALL_ENTRY( 0x0092, NtQueryMutant, 40 ) \
++    SYSCALL_ENTRY( 0x0093, NtQueryObject, 40 ) \
++    SYSCALL_ENTRY( 0x0094, NtQueryPerformanceCounter, 16 ) \
++    SYSCALL_ENTRY( 0x0095, NtQuerySection, 40 ) \
++    SYSCALL_ENTRY( 0x0096, NtQuerySecurityObject, 40 ) \
++    SYSCALL_ENTRY( 0x0097, NtQuerySemaphore, 40 ) \
++    SYSCALL_ENTRY( 0x0098, NtQuerySymbolicLinkObject, 24 ) \
++    SYSCALL_ENTRY( 0x0099, NtQuerySystemEnvironmentValue, 32 ) \
++    SYSCALL_ENTRY( 0x009a, NtQuerySystemEnvironmentValueEx, 40 ) \
++    SYSCALL_ENTRY( 0x009b, NtQuerySystemInformation, 32 ) \
++    SYSCALL_ENTRY( 0x009c, NtQuerySystemInformationEx, 48 ) \
++    SYSCALL_ENTRY( 0x009d, NtQuerySystemTime, 8 ) \
++    SYSCALL_ENTRY( 0x009e, NtQueryTimer, 40 ) \
++    SYSCALL_ENTRY( 0x009f, NtQueryTimerResolution, 24 ) \
++    SYSCALL_ENTRY( 0x00a0, NtQueryValueKey, 48 ) \
++    SYSCALL_ENTRY( 0x00a1, NtQueryVirtualMemory, 48 ) \
++    SYSCALL_ENTRY( 0x00a2, NtQueryVolumeInformationFile, 40 ) \
++    SYSCALL_ENTRY( 0x00a3, NtQueueApcThread, 40 ) \
++    SYSCALL_ENTRY( 0x00a4, NtQueueApcThreadEx, 48 ) \
++    SYSCALL_ENTRY( 0x00a5, NtRaiseException, 24 ) \
++    SYSCALL_ENTRY( 0x00a6, NtRaiseHardError, 48 ) \
++    SYSCALL_ENTRY( 0x00a7, NtReadFile, 72 ) \
++    SYSCALL_ENTRY( 0x00a8, NtReadFileScatter, 72 ) \
++    SYSCALL_ENTRY( 0x00a9, NtReadVirtualMemory, 40 ) \
++    SYSCALL_ENTRY( 0x00aa, NtRegisterThreadTerminatePort, 8 ) \
++    SYSCALL_ENTRY( 0x00ab, NtReleaseKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x00ac, NtReleaseMutant, 16 ) \
++    SYSCALL_ENTRY( 0x00ad, NtReleaseSemaphore, 24 ) \
++    SYSCALL_ENTRY( 0x00ae, NtRemoveIoCompletion, 40 ) \
++    SYSCALL_ENTRY( 0x00af, NtRemoveIoCompletionEx, 48 ) \
++    SYSCALL_ENTRY( 0x00b0, NtRemoveProcessDebug, 16 ) \
++    SYSCALL_ENTRY( 0x00b1, NtRenameKey, 16 ) \
++    SYSCALL_ENTRY( 0x00b2, NtReplaceKey, 24 ) \
++    SYSCALL_ENTRY( 0x00b3, NtReplyWaitReceivePort, 32 ) \
++    SYSCALL_ENTRY( 0x00b4, NtRequestWaitReplyPort, 24 ) \
++    SYSCALL_ENTRY( 0x00b5, NtResetEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00b6, NtResetWriteWatch, 24 ) \
++    SYSCALL_ENTRY( 0x00b7, NtRestoreKey, 24 ) \
++    SYSCALL_ENTRY( 0x00b8, NtResumeProcess, 8 ) \
++    SYSCALL_ENTRY( 0x00b9, NtResumeThread, 16 ) \
++    SYSCALL_ENTRY( 0x00ba, NtRollbackTransaction, 16 ) \
++    SYSCALL_ENTRY( 0x00bb, NtSaveKey, 16 ) \
++    SYSCALL_ENTRY( 0x00bc, NtSecureConnectPort, 72 ) \
++    SYSCALL_ENTRY( 0x00bd, NtSetContextThread, 16 ) \
++    SYSCALL_ENTRY( 0x00be, NtSetDebugFilterState, 24 ) \
++    SYSCALL_ENTRY( 0x00bf, NtSetDefaultLocale, 16 ) \
++    SYSCALL_ENTRY( 0x00c0, NtSetDefaultUILanguage, 8 ) \
++    SYSCALL_ENTRY( 0x00c1, NtSetEaFile, 32 ) \
++    SYSCALL_ENTRY( 0x00c2, NtSetEvent, 16 ) \
++    SYSCALL_ENTRY( 0x00c3, NtSetInformationDebugObject, 40 ) \
++    SYSCALL_ENTRY( 0x00c4, NtSetInformationFile, 40 ) \
++    SYSCALL_ENTRY( 0x00c5, NtSetInformationJobObject, 32 ) \
++    SYSCALL_ENTRY( 0x00c6, NtSetInformationKey, 32 ) \
++    SYSCALL_ENTRY( 0x00c7, NtSetInformationObject, 32 ) \
++    SYSCALL_ENTRY( 0x00c8, NtSetInformationProcess, 32 ) \
++    SYSCALL_ENTRY( 0x00c9, NtSetInformationThread, 32 ) \
++    SYSCALL_ENTRY( 0x00ca, NtSetInformationToken, 32 ) \
++    SYSCALL_ENTRY( 0x00cb, NtSetInformationVirtualMemory, 48 ) \
++    SYSCALL_ENTRY( 0x00cc, NtSetIntervalProfile, 16 ) \
++    SYSCALL_ENTRY( 0x00cd, NtSetIoCompletion, 40 ) \
++    SYSCALL_ENTRY( 0x00ce, NtSetIoCompletionEx, 48 ) \
++    SYSCALL_ENTRY( 0x00cf, NtSetLdtEntries, 32 ) \
++    SYSCALL_ENTRY( 0x00d0, NtSetSecurityObject, 24 ) \
++    SYSCALL_ENTRY( 0x00d1, NtSetSystemInformation, 24 ) \
++    SYSCALL_ENTRY( 0x00d2, NtSetSystemTime, 16 ) \
++    SYSCALL_ENTRY( 0x00d3, NtSetThreadExecutionState, 16 ) \
++    SYSCALL_ENTRY( 0x00d4, NtSetTimer, 56 ) \
++    SYSCALL_ENTRY( 0x00d5, NtSetTimerResolution, 24 ) \
++    SYSCALL_ENTRY( 0x00d6, NtSetValueKey, 48 ) \
++    SYSCALL_ENTRY( 0x00d7, NtSetVolumeInformationFile, 40 ) \
++    SYSCALL_ENTRY( 0x00d8, NtShutdownSystem, 8 ) \
++    SYSCALL_ENTRY( 0x00d9, NtSignalAndWaitForSingleObject, 32 ) \
++    SYSCALL_ENTRY( 0x00da, NtSuspendProcess, 8 ) \
++    SYSCALL_ENTRY( 0x00db, NtSuspendThread, 16 ) \
++    SYSCALL_ENTRY( 0x00dc, NtSystemDebugControl, 48 ) \
++    SYSCALL_ENTRY( 0x00dd, NtTerminateJobObject, 16 ) \
++    SYSCALL_ENTRY( 0x00de, NtTerminateProcess, 16 ) \
++    SYSCALL_ENTRY( 0x00df, NtTerminateThread, 16 ) \
++    SYSCALL_ENTRY( 0x00e0, NtTestAlert, 0 ) \
++    SYSCALL_ENTRY( 0x00e1, NtTraceControl, 48 ) \
++    SYSCALL_ENTRY( 0x00e2, NtUnloadDriver, 8 ) \
++    SYSCALL_ENTRY( 0x00e3, NtUnloadKey, 8 ) \
++    SYSCALL_ENTRY( 0x00e4, NtUnlockFile, 40 ) \
++    SYSCALL_ENTRY( 0x00e5, NtUnlockVirtualMemory, 32 ) \
++    SYSCALL_ENTRY( 0x00e6, NtUnmapViewOfSection, 16 ) \
++    SYSCALL_ENTRY( 0x00e7, NtUnmapViewOfSectionEx, 24 ) \
++    SYSCALL_ENTRY( 0x00e8, NtWaitForAlertByThreadId, 16 ) \
++    SYSCALL_ENTRY( 0x00e9, NtWaitForDebugEvent, 32 ) \
++    SYSCALL_ENTRY( 0x00ea, NtWaitForKeyedEvent, 32 ) \
++    SYSCALL_ENTRY( 0x00eb, NtWaitForMultipleObjects, 40 ) \
++    SYSCALL_ENTRY( 0x00ec, NtWaitForSingleObject, 24 ) \
++    SYSCALL_ENTRY( 0x00ed, NtWriteFile, 72 ) \
++    SYSCALL_ENTRY( 0x00ee, NtWriteFileGather, 72 ) \
++    SYSCALL_ENTRY( 0x00ef, NtWriteVirtualMemory, 40 ) \
++    SYSCALL_ENTRY( 0x00f0, NtYieldExecution, 0 ) \
++    SYSCALL_ENTRY( 0x00f1, wine_nt_to_unix_file_name, 32 ) \
++    SYSCALL_ENTRY( 0x00f2, wine_unix_to_nt_file_name, 24 )
+diff --git a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
+index 1828b860531..a22e195cee1 100644
+--- a/dlls/ntdll/rtl.c
++++ b/dlls/ntdll/rtl.c
+@@ -1257,15 +1257,22 @@ BOOL WINAPI RtlSetCurrentTransaction(HANDLE new_transaction)
+     return FALSE;
+ }
+ 
++/**********************************************************************
++ *           RtlGetCurrentProcessorNumber [NTDLL.@]
++ */
++ULONG WINAPI RtlGetCurrentProcessorNumber(void)
++{
++    PROCESSOR_NUMBER processor;
++    NtGetCurrentProcessorNumberEx( &processor );
++    return processor.Number;
++}
++
+ /**********************************************************************
+  *           RtlGetCurrentProcessorNumberEx [NTDLL.@]
+  */
+ void WINAPI RtlGetCurrentProcessorNumberEx(PROCESSOR_NUMBER *processor)
+ {
+-    FIXME("(%p) :semi-stub\n", processor);
+-    processor->Group = 0;
+-    processor->Number = NtGetCurrentProcessorNumber();
+-    processor->Reserved = 0;
++    NtGetCurrentProcessorNumberEx( processor );
+ }
+ 
+ static RTL_BALANCED_NODE *rtl_node_parent( RTL_BALANCED_NODE *node )
+diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
+index efc5914577b..6f3d2a68c5e 100644
+--- a/dlls/ntdll/unix/system.c
++++ b/dlls/ntdll/unix/system.c
+@@ -676,6 +676,12 @@ static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
+ 
+ #endif /* End architecture specific feature detection for CPUs */
+ 
++unsigned map_host_processor(unsigned processor)
++{
++    /* FIXME simplistic assignment to processor group... */
++    return processor;
++}
++
+ static BOOL grow_logical_proc_buf(void)
+ {
+     SYSTEM_LOGICAL_PROCESSOR_INFORMATION *new_data;
+diff --git a/dlls/ntdll/unix/thread.c b/dlls/ntdll/unix/thread.c
+index b64a7dd40af..aea783056a9 100644
+--- a/dlls/ntdll/unix/thread.c
++++ b/dlls/ntdll/unix/thread.c
+@@ -2555,24 +2555,30 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+     }
+ }
+ 
+-
++static unsigned fill_processor_number(unsigned host_processor, PROCESSOR_NUMBER *proc)
++{
++    unsigned processor = map_host_processor( host_processor );
++    if (!proc) return processor % 64;
++    proc->Group = processor / 64;
++    proc->Reserved = 0;
++    return proc->Number = processor % 64;
++}
+ /******************************************************************************
+  *              NtGetCurrentProcessorNumber  (NTDLL.@)
+  */
+-ULONG WINAPI NtGetCurrentProcessorNumber(void)
++ULONG WINAPI NtGetCurrentProcessorNumberEx(PROCESSOR_NUMBER *processor_number)
+ {
+     ULONG processor;
+ 
+ #if defined(HAVE_SCHED_GETCPU)
+     int res = sched_getcpu();
+-    if (res >= 0) return res;
++    if (res >= 0) return fill_processor_number(res, processor_number);
+ #elif defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
+     struct {
+         unsigned long p1, p2;
+     } p;
+     __asm__ __volatile__("sidt %[p]" : [p] "=&m"(p));
+-    processor = (ULONG)(p.p1 & 0xfff);
+-    return processor;
++    return fill_processor_number((ULONG)(p.p1 & 0xfff), processor_number);
+ #endif
+ 
+     if (peb->NumberOfProcessors > 1)
+@@ -2599,6 +2605,10 @@ ULONG WINAPI NtGetCurrentProcessorNumber(void)
+     return 0;
+ }
+ 
++ULONG WINAPI NtGetCurrentProcessorNumber(void)
++{
++    return NtGetCurrentProcessorNumberEx(NULL);
++}
+ 
+ /******************************************************************************
+  *              NtGetNextThread  (NTDLL.@)
+diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
+index f840045f841..03995c9a8a6 100644
+--- a/dlls/ntdll/unix/unix_private.h
++++ b/dlls/ntdll/unix/unix_private.h
+@@ -362,6 +362,7 @@ extern void file_complete_async( HANDLE handle, unsigned int options, HANDLE eve
+                                  IO_STATUS_BLOCK *io, NTSTATUS status, ULONG_PTR information );
+ extern void set_async_direct_result( HANDLE *async_handle, unsigned int options, IO_STATUS_BLOCK *io,
+                                      NTSTATUS status, ULONG_PTR information, BOOL mark_pending );
++extern unsigned map_host_processor(unsigned processor);
+ 
+ extern NTSTATUS unixcall_wine_dbg_write( void *args );
+ extern NTSTATUS unixcall_wine_server_call( void *args );
+diff --git a/dlls/wow64/syscall.c b/dlls/wow64/syscall.c
+index d2a977ee5ad..653f53cfb4a 100644
+--- a/dlls/wow64/syscall.c
++++ b/dlls/wow64/syscall.c
+@@ -570,6 +570,17 @@ NTSTATUS WINAPI wow64_NtGetCurrentProcessorNumber( UINT *args )
+ }
+ 
+ 
++/**********************************************************************
++ *           wow64_NtGetCurrentProcessorNumber
++ */
++NTSTATUS WINAPI wow64_NtGetCurrentProcessorNumberEx( UINT *args )
++{
++    PROCESSOR_NUMBER *processor = get_ptr( &args );
++
++    return NtGetCurrentProcessorNumberEx( processor );
++}
++
++
+ /**********************************************************************
+  *           wow64_NtQueryDefaultLocale
+  */
+-- 
+2.48.1
+
+
+From 3d4301f13c6865bf9f1408f8db98a30cd2d41989 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 09:19:28 +0100
+Subject: [PATCH 06/11] ntdll: Add support for multiple process groups in
+ processor info.
+
+---
+ dlls/kernel32/tests/thread.c   |  18 +-
+ dlls/ntdll/unix/system.c       | 453 ++++++++++++++++++++++++++-------
+ dlls/ntdll/unix/thread.c       |  12 +-
+ dlls/ntdll/unix/unix_private.h |   2 +-
+ 4 files changed, 377 insertions(+), 108 deletions(-)
+
+diff --git a/dlls/kernel32/tests/thread.c b/dlls/kernel32/tests/thread.c
+index aaed8af5977..a1314b69309 100644
+--- a/dlls/kernel32/tests/thread.c
++++ b/dlls/kernel32/tests/thread.c
+@@ -1075,14 +1075,14 @@ static void test_thread_processor_group(void)
+             gaff.Group = group;
+             gaff.Mask = (ULONG_PTR)1 << idx;
+             ret = pSetThreadGroupAffinity(GetCurrentThread(), &gaff, NULL);
+-            ok(ret, "Couldn't set affinity to logical processor\n");
++            todo_wine_if(group)  ok(ret, "Couldn't set affinity to logical processor\n");
+             pGetCurrentProcessorNumberEx(&proc);
+-            ok(proc.Group == group, "Unexpected processor group\n");
++            todo_wine_if(group) ok(proc.Group == group, "Unexpected processor group\n");
+             ok(proc.Number == idx, "Unexpected processor group\n");
+             memset(&gaff2, 0xA5, sizeof(gaff2));
+             ret = pGetThreadGroupAffinity(GetCurrentThread(), &gaff2);
+             ok(ret, "GetThreadGroupAffinity failed\n");
+-            ok(!memcmp(&gaff, &gaff2, sizeof(gaff)), "Should have same result\n");
++            todo_wine_if(group) ok(!memcmp(&gaff, &gaff2, sizeof(gaff)), "Should have same result\n");
+             num_tested_groups++;
+         }
+         if (mask && mask != ~(ULONG_PTR)0)
+@@ -1101,7 +1101,7 @@ static void test_thread_processor_group(void)
+     if (num_tested_groups && !num_tested_groups_partial) skip("Couldn't test partial processor groups\n");
+ 
+     ret = SetProcessAffinityMask(GetCurrentProcess(), ~(DWORD_PTR)0);
+-    ok(!ret, "This should have failed on multiple processor groups\n");
++    todo_wine ok(!ret, "This should have failed on multiple processor groups\n");
+ 
+     gaff.Group = 0;
+     gaff.Mask = info->Group.GroupInfo[0].ActiveProcessorMask;
+@@ -1117,23 +1117,23 @@ static void test_thread_processor_group(void)
+     gaff.Group = 1;
+     memcpy(&gaff.Mask, &info->Group.GroupInfo[1].ActiveProcessorMask, sizeof(gaff.Mask));
+     ret = pSetThreadGroupAffinity(thd1, &gaff, NULL);
+-    ok(ret, "Couldn't set affinity to logical processor\n");
++    todo_wine ok(ret, "Couldn't set affinity to logical processor\n");
+     memset(&gaff2, 0xA5, sizeof(gaff2));
+     ret = pGetThreadGroupAffinity(thd1, &gaff2);
+     ok(ret, "GetThreadGroupAffinity failed\n");
+-    ok(gaff.Group == gaff2.Group, "Should have same group\n");
++    todo_wine ok(gaff.Group == gaff2.Group, "Should have same group\n");
+     ok(gaff.Mask == gaff2.Mask, "Should have same affinity mask\n");
+ 
+     memset(groups, 0xA5, sizeof(groups));
+     groups_count = ARRAY_SIZE(groups);
+     ret = pGetProcessGroupAffinity(GetCurrentProcess(), &groups_count, groups);
+-    ok(ret, "GetProcessGroupAffinity failed\n");
++    todo_wine ok(ret, "GetProcessGroupAffinity failed\n");
+     /* as we don't control all the threads, some could be on other processor groups */
+     ok(groups_count >= 2, "Unexpected groups count value\n");
+     groups_aggregation[0] = groups_aggregation[1] = 0;
+     for (i = 0; i < groups_count; i++)
+         if (groups[i] < 2) groups_aggregation[groups[i]]++;
+-    ok(groups_aggregation[0] == 1 && groups_aggregation[1] == 1, "Only expecting 0,1 pair of groups\n");
++    todo_wine ok(groups_aggregation[0] == 1 && groups_aggregation[1] == 1, "Only expecting 0,1 pair of groups\n");
+ 
+     process_mask = system_mask = 0xdeadbeef;
+     ret = GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask);
+@@ -1141,7 +1141,7 @@ static void test_thread_processor_group(void)
+     ok(process_mask == ~(DWORD_PTR)0 && system_mask == ~(DWORD_PTR)0, "Unexpected values %Ix %Ix\n", process_mask, system_mask);
+ 
+     ret = SetProcessAffinityMask(GetCurrentProcess(), 0x1);
+-    ok(!ret, "This should have failed on multiple processor groups\n");
++    todo_wine ok(!ret, "This should have failed on multiple processor groups\n");
+ 
+     TerminateThread(thd1, 0);
+     CloseHandle(thd1);
+diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
+index 6f3d2a68c5e..68367e55d9b 100644
+--- a/dlls/ntdll/unix/system.c
++++ b/dlls/ntdll/unix/system.c
+@@ -256,7 +256,6 @@ static SYSTEM_LOGICAL_PROCESSOR_INFORMATION *logical_proc_info;
+ static unsigned int logical_proc_info_len, logical_proc_info_alloc_len;
+ static SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *logical_proc_info_ex;
+ static unsigned int logical_proc_info_ex_size, logical_proc_info_ex_alloc_size;
+-static ULONG_PTR system_cpu_mask;
+ 
+ static pthread_mutex_t timezone_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+@@ -676,12 +675,142 @@ static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
+ 
+ #endif /* End architecture specific feature detection for CPUs */
+ 
+-unsigned map_host_processor(unsigned processor)
++static unsigned system_max_present_host_cores;
++static USHORT *system_host_to_win_cpu_map;
++
++NTSTATUS map_host_processor(unsigned host_cpu, unsigned *win_cpu)
++{
++    if (!system_host_to_win_cpu_map)
++        *win_cpu = host_cpu;
++    else
++    {
++        if (host_cpu >= system_max_present_host_cores || system_host_to_win_cpu_map[host_cpu] == (USHORT)-1)
++            return STATUS_INVALID_PARAMETER;
++        *win_cpu = system_host_to_win_cpu_map[host_cpu];
++    }
++    return STATUS_SUCCESS;
++}
++
++#define MAX_CORESET_LOGICAL_CORES 1024
++#define CORESET_SLOT_NBITS (sizeof(ULONG_PTR) * 8)
++
++struct coreset_info
++{
++    ULONG_PTR masks[MAX_CORESET_LOGICAL_CORES / CORESET_SLOT_NBITS];
++};
++
++static inline void coreset_zero( struct coreset_info *info )
++{
++    memset( info, 0, sizeof(*info) );
++}
++
++static inline void coreset_set( unsigned cpuid, struct coreset_info *info )
++{
++    if (cpuid < MAX_CORESET_LOGICAL_CORES) info->masks[cpuid / CORESET_SLOT_NBITS] |= (ULONG_PTR)1u << (cpuid % CORESET_SLOT_NBITS);
++}
++
++static inline void coreset_clear( unsigned cpuid, struct coreset_info *info )
+ {
+-    /* FIXME simplistic assignment to processor group... */
+-    return processor;
++    if (cpuid < MAX_CORESET_LOGICAL_CORES) info->masks[cpuid / CORESET_SLOT_NBITS] &= ~((ULONG_PTR)1u << (cpuid % CORESET_SLOT_NBITS));
++}
++
++static inline int coreset_is_set( unsigned cpuid, struct coreset_info *info )
++{
++    return (cpuid < MAX_CORESET_LOGICAL_CORES) &&
++        (info->masks[cpuid / CORESET_SLOT_NBITS] & (ULONG_PTR)1u << (cpuid % CORESET_SLOT_NBITS)) != 0;
++}
++
++static inline int coreset_number_active( const struct coreset_info *info )
++{
++    unsigned i, active = 0;
++
++    for (i = 0; i < ARRAY_SIZE(info->masks); i++)
++    {
++        if (info->masks[i]) active++;
++    }
++    return active;
++}
++
++static inline int coreset_is_empty( const struct coreset_info *info )
++{
++    return coreset_number_active( info ) == 0;
++}
++
++static inline unsigned coreset_count( const struct coreset_info *info )
++{
++    unsigned count = 0, i;
++    ULONG_PTR r;
++
++    for (i = 0; i < ARRAY_SIZE(info->masks); i++)
++    {
++        for (r = info->masks[i]; r; r >>= 1)
++            if (r & 1) count++;
++    }
++    return count;
+ }
+ 
++static inline void coreset_or( struct coreset_info *dst, const struct coreset_info *src1, const struct coreset_info *src2 )
++{
++    unsigned i;
++
++    for (i = 0; i < ARRAY_SIZE(dst->masks); i++)
++    {
++        dst->masks[i] = src1->masks[i] | src2->masks[i];
++    }
++}
++
++static inline unsigned coreset_lowest_set( const struct coreset_info *info )
++{
++    unsigned ret, i;
++    ULONG_PTR mask;
++
++    for (i = 0; i < ARRAY_SIZE(info->masks); i++)
++    {
++        if (info->masks[i])
++        {
++            ret = i * CORESET_SLOT_NBITS;
++            for (mask = (ULONG_PTR)1u; mask; mask <<= 1, ret++)
++                if (info->masks[i] & mask) return ret;
++        }
++    }
++    return ~0u;
++}
++
++static inline unsigned coreset_highest_set( const struct coreset_info *info )
++{
++    unsigned ret, i;
++    ULONG_PTR mask;
++
++    for (i = ARRAY_SIZE(info->masks); i; i--)
++    {
++        if (info->masks[i - 1])
++        {
++            ret = i * CORESET_SLOT_NBITS - 1;
++            for (mask = (ULONG_PTR)1 << (CORESET_SLOT_NBITS - 1); mask; mask >>= 1, ret--)
++                if (info->masks[i - 1] & mask) return ret;
++        }
++    }
++    return ~0u;
++}
++
++static inline BOOL coreset_get_group_affinity( const struct coreset_info *info, GROUP_AFFINITY *aff )
++{
++    unsigned group = coreset_lowest_set( info ) / MAXIMUM_PROC_PER_GROUP;
++
++    if (coreset_is_empty( info )) return FALSE;
++    if (group != coreset_highest_set( info ) / MAXIMUM_PROC_PER_GROUP)
++    {
++        FIXME("core set doesn't fit into a single processor group, expect trouble\n");
++        return FALSE;
++    }
++    aff->Group = group;
++    aff->Mask = group < ARRAY_SIZE(info->masks) ? info->masks[group] : 0;
++    return TRUE;
++}
++
++static unsigned system_max_processor_groups;
++static struct coreset_info system_all_win_cores_info;
++
+ static BOOL grow_logical_proc_buf(void)
+ {
+     SYSTEM_LOGICAL_PROCESSOR_INFORMATION *new_data;
+@@ -730,9 +859,50 @@ static DWORD count_bits( ULONG_PTR mask )
+     return count;
+ }
+ 
+-static BOOL logical_proc_info_ex_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel, DWORD id, ULONG_PTR mask )
++static void fold_single_into_group_affinity_array( const struct coreset_info *info, WORD *group_count,
++                                                   GROUP_AFFINITY *affinities )
++{
++    unsigned i;
++    GROUP_AFFINITY aff;
++
++    if (!coreset_get_group_affinity( info, &aff )) return;
++    for (i = 0; i < *group_count; i++)
++    {
++        if (aff.Group == affinities[i].Group)
++        {
++            affinities[i].Mask |= aff.Mask;
++            return;
++        }
++    }
++    affinities[(*group_count)++] = aff;
++}
++
++static void fold_multiple_into_group_affinity_array( const struct coreset_info *info, WORD *group_count,
++                                                     GROUP_AFFINITY *affinities )
++{
++    unsigned i, j;
++    for (i = 0; i < ARRAY_SIZE(info->masks); i++)
++    {
++        if (!info->masks[i]) continue;
++        for (j = 0; j < *group_count; j++)
++            if (affinities[j].Group == i)
++            {
++                affinities[j].Mask |= info->masks[i];
++                break;
++            }
++        if (j == *group_count)
++        {
++            affinities[*group_count].Group = i;
++            affinities[*group_count].Mask = info->masks[i];
++            (*group_count)++;
++        }
++    }
++}
++
++static BOOL logical_proc_info_ex_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel, DWORD id, const struct coreset_info *info )
+ {
+     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *dataex;
++    unsigned size;
+     unsigned int ofs = 0;
+ 
+     while (ofs < logical_proc_info_ex_size)
+@@ -740,7 +910,7 @@ static BOOL logical_proc_info_ex_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel,
+         dataex = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)logical_proc_info_ex + ofs);
+         if (rel == RelationProcessorPackage && dataex->Relationship == rel && dataex->Processor.Reserved[1] == id)
+         {
+-            dataex->Processor.GroupMask[0].Mask |= mask;
++            fold_single_into_group_affinity_array( info, &dataex->Processor.GroupCount, dataex->Processor.GroupMask );
+             return TRUE;
+         }
+         else if (rel == RelationProcessorCore && dataex->Relationship == rel && dataex->Processor.Reserved[1] == id)
+@@ -750,16 +920,19 @@ static BOOL logical_proc_info_ex_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel,
+         ofs += dataex->Size;
+     }
+ 
+-    /* TODO: For now, just one group. If more than 64 processors, then we
+-     * need another group. */
+-    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( sizeof(PROCESSOR_RELATIONSHIP) ))) return FALSE;
++    if (rel == RelationProcessorPackage)
++        size = offsetof(PROCESSOR_RELATIONSHIP, GroupMask[system_max_processor_groups]);
++    else
++        size = sizeof(PROCESSOR_RELATIONSHIP);
++
++    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( size ))) return FALSE;
+ 
+     dataex = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)logical_proc_info_ex + ofs);
+ 
+     dataex->Relationship = rel;
+-    dataex->Size = log_proc_ex_size_plus( sizeof(PROCESSOR_RELATIONSHIP) );
++    dataex->Size = log_proc_ex_size_plus( size );
+     if (rel == RelationProcessorCore)
+-        dataex->Processor.Flags = count_bits( mask ) > 1 ? LTP_PC_SMT : 0;
++        dataex->Processor.Flags = coreset_count( info ) > 1 ? LTP_PC_SMT : 0;
+     else
+         dataex->Processor.Flags = 0;
+     if (rel == RelationProcessorCore && id / 32 < performance_cores_capacity)
+@@ -767,8 +940,7 @@ static BOOL logical_proc_info_ex_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel,
+     else
+         dataex->Processor.EfficiencyClass = 0;
+     dataex->Processor.GroupCount = 1;
+-    dataex->Processor.GroupMask[0].Mask = mask;
+-    dataex->Processor.GroupMask[0].Group = 0;
++    coreset_get_group_affinity( info, &dataex->Processor.GroupMask[0] );
+     /* mark for future lookup */
+     dataex->Processor.Reserved[0] = 0;
+     dataex->Processor.Reserved[1] = id;
+@@ -783,7 +955,7 @@ static BOOL logical_proc_info_ex_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel,
+  * - RelationProcessorPackage: package id ('CPU socket').
+  * - RelationProcessorCore: physical core number.
+  */
+-static BOOL logical_proc_info_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel, DWORD id, ULONG_PTR mask )
++static BOOL logical_proc_info_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel, DWORD id, const struct coreset_info *info )
+ {
+     unsigned int i;
+ 
+@@ -792,118 +964,149 @@ static BOOL logical_proc_info_add_by_id( LOGICAL_PROCESSOR_RELATIONSHIP rel, DWO
+         if (rel == RelationProcessorPackage && logical_proc_info[i].Relationship == rel
+             && logical_proc_info[i].Reserved[1] == id)
+         {
+-            logical_proc_info[i].ProcessorMask |= mask;
+-            return logical_proc_info_ex_add_by_id( rel, id, mask );
++            logical_proc_info[i].ProcessorMask |= info->masks[0];
++            return logical_proc_info_ex_add_by_id( rel, id, info );
+         }
+         else if (rel == RelationProcessorCore && logical_proc_info[i].Relationship == rel
+                  && logical_proc_info[i].Reserved[1] == id)
+-            return logical_proc_info_ex_add_by_id( rel, id, mask );
++            return logical_proc_info_ex_add_by_id( rel, id, info );
+     }
+ 
+     if (!grow_logical_proc_buf()) return FALSE;
+ 
+     logical_proc_info[i].Relationship = rel;
+-    logical_proc_info[i].ProcessorMask = mask;
++    logical_proc_info[i].ProcessorMask = info->masks[0];
+     if (rel == RelationProcessorCore)
+-        logical_proc_info[i].ProcessorCore.Flags = count_bits( mask ) > 1 ? LTP_PC_SMT : 0;
++        logical_proc_info[i].ProcessorCore.Flags = count_bits( info->masks[0] ) > 1 ? LTP_PC_SMT : 0;
+     logical_proc_info[i].Reserved[0] = 0;
+     logical_proc_info[i].Reserved[1] = id;
+     logical_proc_info_len = i + 1;
+ 
+-    return logical_proc_info_ex_add_by_id( rel, id, mask );
++    return logical_proc_info_ex_add_by_id( rel, id, info );
+ }
+ 
+-static BOOL logical_proc_info_add_cache( ULONG_PTR mask, CACHE_DESCRIPTOR *cache )
++static BOOL logical_proc_info_add_cache( const struct coreset_info *info, CACHE_DESCRIPTOR *cache )
+ {
+     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *dataex;
++    unsigned size = offsetof(CACHE_RELATIONSHIP, GroupMasks[system_max_processor_groups]);
+     unsigned int ofs = 0, i;
+ 
+     for (i = 0; i < logical_proc_info_len; i++)
+     {
+-        if (logical_proc_info[i].Relationship==RelationCache && logical_proc_info[i].ProcessorMask==mask
+-            && logical_proc_info[i].Cache.Level==cache->Level && logical_proc_info[i].Cache.Type==cache->Type)
++        if (logical_proc_info[i].Relationship == RelationCache && logical_proc_info[i].ProcessorMask == info->masks[0]
++            && logical_proc_info[i].Cache.Level == cache->Level && logical_proc_info[i].Cache.Type == cache->Type)
+             return TRUE;
+     }
+ 
+     if (!grow_logical_proc_buf()) return FALSE;
+ 
+     logical_proc_info[i].Relationship = RelationCache;
+-    logical_proc_info[i].ProcessorMask = mask;
++    logical_proc_info[i].ProcessorMask = info->masks[0];
+     logical_proc_info[i].Cache = *cache;
+     logical_proc_info_len = i + 1;
+ 
+     for (ofs = 0; ofs < logical_proc_info_ex_size; )
+     {
+         dataex = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)logical_proc_info_ex + ofs);
+-        if (dataex->Relationship == RelationCache && dataex->Cache.GroupMask.Mask == mask
++        if (dataex->Relationship == RelationCache
+             && dataex->Cache.Level == cache->Level && dataex->Cache.Type == cache->Type)
++        {
++            fold_multiple_into_group_affinity_array( info, &dataex->Cache.GroupCount, dataex->Cache.GroupMasks );
+             return TRUE;
++        }
+         ofs += dataex->Size;
+     }
+ 
+-    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( sizeof(CACHE_RELATIONSHIP) ))) return FALSE;
++    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( size ))) return FALSE;
+ 
+     dataex = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)logical_proc_info_ex + ofs);
+ 
+     dataex->Relationship = RelationCache;
+-    dataex->Size = log_proc_ex_size_plus( sizeof(CACHE_RELATIONSHIP) );
++    dataex->Size = log_proc_ex_size_plus( size );
+     dataex->Cache.Level = cache->Level;
+     dataex->Cache.Associativity = cache->Associativity;
+     dataex->Cache.LineSize = cache->LineSize;
+     dataex->Cache.CacheSize = cache->Size;
+     dataex->Cache.Type = cache->Type;
+-    dataex->Cache.GroupMask.Mask = mask;
+-    dataex->Cache.GroupMask.Group = 0;
++    dataex->Cache.GroupCount = 0;
++    for (i = 0; i < system_max_processor_groups; i++)
++    {
++        if (info->masks[i])
++        {
++            dataex->Cache.GroupMasks[dataex->Cache.GroupCount].Group = i;
++            dataex->Cache.GroupMasks[dataex->Cache.GroupCount].Mask = info->masks[i];
++            dataex->Cache.GroupCount++;
++        }
++    }
+ 
+     logical_proc_info_ex_size += dataex->Size;
+ 
+     return TRUE;
+ }
+ 
+-static BOOL logical_proc_info_add_numa_node( ULONG_PTR mask, DWORD node_id )
++static BOOL logical_proc_info_add_numa_node( const struct coreset_info *info, DWORD node_id )
+ {
+     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *dataex;
++    unsigned group_count = coreset_number_active( info );
++    unsigned size = offsetof(NUMA_NODE_RELATIONSHIP, GroupMasks[group_count]);
++    unsigned group;
+ 
+     if (!grow_logical_proc_buf()) return FALSE;
+ 
+     logical_proc_info[logical_proc_info_len].Relationship = RelationNumaNode;
+-    logical_proc_info[logical_proc_info_len].ProcessorMask = mask;
++    logical_proc_info[logical_proc_info_len].ProcessorMask = info->masks[0];
+     logical_proc_info[logical_proc_info_len].NumaNode.NodeNumber = node_id;
+     ++logical_proc_info_len;
+ 
+-    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( sizeof(NUMA_NODE_RELATIONSHIP) ))) return FALSE;
++    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( size ))) return FALSE;
+ 
+     dataex = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)logical_proc_info_ex + logical_proc_info_ex_size);
+ 
+     dataex->Relationship = RelationNumaNode;
+-    dataex->Size = log_proc_ex_size_plus( sizeof(NUMA_NODE_RELATIONSHIP) );
++    dataex->Size = log_proc_ex_size_plus( size );
+     dataex->NumaNode.NodeNumber = node_id;
+-    dataex->NumaNode.GroupMask.Mask = mask;
+-    dataex->NumaNode.GroupMask.Group = 0;
++    for (dataex->NumaNode.GroupCount = group = 0; group < group_count; group++)
++    {
++        if (info->masks[group])
++        {
++            dataex->NumaNode.GroupMasks[dataex->NumaNode.GroupCount].Group = group;
++            dataex->NumaNode.GroupMasks[dataex->NumaNode.GroupCount].Mask = info->masks[group];
++            dataex->NumaNode.GroupCount++;
++        }
++    }
++    if (dataex->NumaNode.GroupCount != group_count) FIXME("WTF\n");
+ 
+     logical_proc_info_ex_size += dataex->Size;
+ 
+     return TRUE;
+ }
+ 
+-static BOOL logical_proc_info_add_group( DWORD num_cpus, ULONG_PTR mask )
++static BOOL logical_proc_info_add_group( const struct coreset_info *info )
+ {
+     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *dataex;
++    unsigned size = offsetof(GROUP_RELATIONSHIP, GroupInfo[system_max_processor_groups]);
++    unsigned group;
+ 
+-    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( sizeof(GROUP_RELATIONSHIP) ))) return FALSE;
++    if (!grow_logical_proc_ex_buf( log_proc_ex_size_plus( size ))) return FALSE;
+ 
+     dataex = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)(((char *)logical_proc_info_ex) + logical_proc_info_ex_size);
+ 
+     dataex->Relationship = RelationGroup;
+-    dataex->Size = log_proc_ex_size_plus( sizeof(GROUP_RELATIONSHIP) );
+-    dataex->Group.MaximumGroupCount = 1;
+-    dataex->Group.ActiveGroupCount = 1;
+-    dataex->Group.GroupInfo[0].MaximumProcessorCount = num_cpus;
+-    dataex->Group.GroupInfo[0].ActiveProcessorCount = num_cpus;
+-    dataex->Group.GroupInfo[0].ActiveProcessorMask = mask;
+-
++    dataex->Size = log_proc_ex_size_plus( size );
++    dataex->Group.MaximumGroupCount = system_max_processor_groups;
++    dataex->Group.ActiveGroupCount = 0;
++    for (group = 0; group < system_max_processor_groups; group++)
++    {
++        if (info->masks[group])
++        {
++            dataex->Group.GroupInfo[dataex->Group.ActiveGroupCount].MaximumProcessorCount = MAXIMUM_PROC_PER_GROUP;
++            dataex->Group.GroupInfo[dataex->Group.ActiveGroupCount].ActiveProcessorCount = count_bits( info->masks[group] );
++            dataex->Group.GroupInfo[dataex->Group.ActiveGroupCount].ActiveProcessorMask = info->masks[group];
++            dataex->Group.ActiveGroupCount++;
++        }
++    }
+     logical_proc_info_ex_size += dataex->Size;
+-    system_cpu_mask |= mask;
++
+     return TRUE;
+ }
+ 
+@@ -917,19 +1120,37 @@ static BOOL logical_proc_info_add_group( DWORD num_cpus, ULONG_PTR mask )
+  * - /sys/devices/system/cpu/cpu0/cache/index0/shared_cpu_map
+  * - /sys/devices/system/cpu/cpu0/topology/thread_siblings
+  */
+-static BOOL sysfs_parse_bitmap(const char *filename, ULONG_PTR *mask)
++static BOOL sysfs_parse_bitmap(const char *filename, struct coreset_info *info)
+ {
+     FILE *f;
+-    unsigned int r;
++    unsigned int r, shift = (system_max_present_host_cores - 1) / (sizeof(UINT32) * 8);
++    unsigned cpuid, win_cpu;
+ 
+     f = fopen(filename, "r");
+     if (!f) return FALSE;
++    coreset_zero( info );
+ 
+     while (!feof(f))
+     {
+         char op;
+         if (!fscanf(f, "%x%c ", &r, &op)) break;
+-        *mask = (sizeof(ULONG_PTR)>sizeof(int) ? *mask << (8 * sizeof(DWORD)) : 0) + r;
++        if ((int)shift < 0) FIXME("WTF %u\n", __LINE__);
++        cpuid = shift * sizeof(UINT32) * 8;
++        while (r)
++        {
++            if (r & 1)
++            {
++                if (map_host_processor(cpuid, &win_cpu))
++                {
++                    fclose(f);
++                    return FALSE;
++                }
++                coreset_set( cpuid, info );
++            }
++            r >>= 1;
++            cpuid++;
++        }
++        shift--;
+     }
+     fclose( f );
+     return TRUE;
+@@ -1006,6 +1227,54 @@ done:
+     fclose(fpcore_list);
+ }
+ 
++static NTSTATUS build_cpu_map_tables(void)
++{
++    FILE *fcpu_list;
++    unsigned int beg, end, host_cpu, win_cpu;
++    char op;
++
++    if (sysfs_count_list_elements("/sys/devices/system/cpu/present", &system_max_present_host_cores) &&
++        system_max_present_host_cores > MAX_CORESET_LOGICAL_CORES)
++    {
++        FIXME("Improve CPU info reporting: system supports %u logical cores, but only %u supported!\n",
++              system_max_present_host_cores, MAX_CORESET_LOGICAL_CORES);
++    }
++    if (!(system_host_to_win_cpu_map = malloc( sizeof(system_host_to_win_cpu_map[0]) * system_max_present_host_cores )))
++        return STATUS_NO_MEMORY;
++
++    for (host_cpu = 0; host_cpu < system_max_present_host_cores; host_cpu++)
++        system_host_to_win_cpu_map[host_cpu] = -1;
++
++    /* build host cpu_set */
++    fcpu_list = fopen("/sys/devices/system/cpu/online", "r");
++    if (!fcpu_list) return STATUS_NOT_IMPLEMENTED;
++
++    win_cpu = 0;
++    while (!feof(fcpu_list))
++    {
++        if (!fscanf(fcpu_list, "%u%c ", &beg, &op)) break;
++        if (op == '-') fscanf(fcpu_list, "%u%c ", &end, &op);
++        else end = beg;
++
++        if (end >= system_max_present_host_cores)
++        {
++            FIXME("Incoherent settings\n");
++            return STATUS_INVALID_PARAMETER;
++        }
++        for (host_cpu = beg; host_cpu <= end; host_cpu++)
++            system_host_to_win_cpu_map[host_cpu] = win_cpu++;
++    }
++    fclose(fcpu_list);
++
++    if (win_cpu != peb->NumberOfProcessors)
++        FIXME("Mismatch here\n");
++    system_max_processor_groups = 1 + (win_cpu - 1) / MAXIMUM_PROC_PER_GROUP;
++    FIXME("Working on %u cores across %u processor groups\n",
++          win_cpu, system_max_processor_groups);
++
++    return STATUS_SUCCESS;
++}
++
+ /* for 'data', max_len is the array count. for 'dataex', max_len is in bytes */
+ static NTSTATUS create_logical_proc_info(void)
+ {
+@@ -1014,23 +1283,13 @@ static NTSTATUS create_logical_proc_info(void)
+     static const char numa_info[] = "/sys/devices/system/node/node%u/cpumap";
+ 
+     FILE *fcpu_list, *fnuma_list, *f;
+-    unsigned int beg, end, i, j, r, num_cpus = 0, max_cpus = 0;
++    unsigned int beg, end, i, j, r;
+     char op, name[MAX_PATH];
+-    ULONG_PTR all_cpus_mask = 0;
++    NTSTATUS status;
+ 
+-    /* On systems with a large number of CPU cores (32 or 64 depending on 32-bit or 64-bit),
+-     * we have issues parsing processor information:
+-     * - ULONG_PTR masks as used in data structures can't hold all cores. Requires splitting
+-     *   data appropriately into "processor groups". We are hard coding 1.
+-     * - Thread affinity code in wineserver and our CPU parsing code here work independently.
+-     *   So far the Windows mask applied directly to Linux, but process groups break that.
+-     *   (NUMA systems you may have multiple non-full groups.)
+-     */
+-    if(sysfs_count_list_elements("/sys/devices/system/cpu/present", &max_cpus) && max_cpus > MAXIMUM_PROCESSORS)
+-    {
+-        FIXME("Improve CPU info reporting: system supports %u logical cores, but only %u supported!\n",
+-                max_cpus, MAXIMUM_PROCESSORS);
+-    }
++    if ((status = build_cpu_map_tables())) return status;
++
++    coreset_zero( &system_all_win_cores_info );
+ 
+     fill_performance_core_info();
+ 
+@@ -1043,12 +1302,13 @@ static NTSTATUS create_logical_proc_info(void)
+         if (op == '-') fscanf(fcpu_list, "%u%c ", &end, &op);
+         else end = beg;
+ 
+-        for(i = beg; i <= end; i++)
++        for (i = beg; i <= end; i++)
+         {
+-            unsigned int phys_core = 0;
+-            ULONG_PTR thread_mask = 0;
++            unsigned int phys_core = 0, win_cpu;
++            struct coreset_info thread_mask, zmask;
+ 
+-            if (i > 8 * sizeof(ULONG_PTR)) break;
++            coreset_zero( &thread_mask );
++            coreset_zero( &zmask );
+ 
+             snprintf(name, sizeof(name), core_info, i, "physical_package_id");
+             f = fopen(name, "r");
+@@ -1058,7 +1318,9 @@ static NTSTATUS create_logical_proc_info(void)
+                 fclose(f);
+             }
+             else r = 0;
+-            if (!logical_proc_info_add_by_id( RelationProcessorPackage, r, (ULONG_PTR)1 << i ))
++            if (!map_host_processor( i, &win_cpu ))
++                coreset_set( win_cpu, &zmask );
++            if (!logical_proc_info_add_by_id( RelationProcessorPackage, r, &zmask ))
+             {
+                 fclose(fcpu_list);
+                 return STATUS_NO_MEMORY;
+@@ -1077,21 +1339,25 @@ static NTSTATUS create_logical_proc_info(void)
+ 
+             /* Mask of logical threads sharing same physical core in kernel core numbering. */
+             snprintf(name, sizeof(name), core_info, i, "thread_siblings");
+-            if(!sysfs_parse_bitmap(name, &thread_mask)) thread_mask = 1<<i;
++            if (!sysfs_parse_bitmap(name, &thread_mask))
++                memcpy( &thread_mask, &zmask, sizeof(thread_mask) );
+ 
+             /* Needed later for NumaNode and Group. */
+-            all_cpus_mask |= thread_mask;
++            coreset_or( &system_all_win_cores_info, &system_all_win_cores_info, &thread_mask );
+ 
+             snprintf(name, sizeof(name), core_info, i, "thread_siblings_list");
+-            f = fopen(name, "r");
+-            if (f)
++            if ((f = fopen(name, "r")))
+             {
+                 fscanf(f, "%d%c", &phys_core, &op);
+                 fclose(f);
+             }
+             else phys_core = i;
+ 
+-            if (!logical_proc_info_add_by_id( RelationProcessorCore, phys_core, thread_mask ))
++            if (coreset_lowest_set( &thread_mask ) / MAXIMUM_PROC_PER_GROUP !=
++                coreset_highest_set( &thread_mask ) / MAXIMUM_PROC_PER_GROUP)
++                FIXME("Physical core doesn't fit in a single process group, expect trouble\n");
++            if (map_host_processor( phys_core, &win_cpu) ||
++                !logical_proc_info_add_by_id( RelationProcessorCore, win_cpu, &thread_mask ))
+             {
+                 fclose(fcpu_list);
+                 return STATUS_NO_MEMORY;
+@@ -1100,14 +1366,14 @@ static NTSTATUS create_logical_proc_info(void)
+             for (j = 0; j < 4; j++)
+             {
+                 CACHE_DESCRIPTOR cache = { .Associativity = 8, .LineSize = 64, .Type = CacheUnified, .Size = 64 * 1024 };
+-                ULONG_PTR mask = 0;
++                struct coreset_info mask;
+ 
+                 snprintf(name, sizeof(name), cache_info, i, j, "shared_cpu_map");
+-                if(!sysfs_parse_bitmap(name, &mask)) continue;
++                if (!sysfs_parse_bitmap(name, &mask)) continue;
+ 
+                 snprintf(name, sizeof(name), cache_info, i, j, "level");
+                 f = fopen(name, "r");
+-                if(!f) continue;
++                if (!f) continue;
+                 fscanf(f, "%u", &r);
+                 fclose(f);
+                 cache.Level = r;
+@@ -1151,7 +1417,7 @@ static NTSTATUS create_logical_proc_info(void)
+                         cache.Type = CacheUnified;
+                 }
+ 
+-                if (!logical_proc_info_add_cache( mask, &cache ))
++                if (!logical_proc_info_add_cache( &mask, &cache ))
+                 {
+                     fclose(fcpu_list);
+                     return STATUS_NO_MEMORY;
+@@ -1161,12 +1427,10 @@ static NTSTATUS create_logical_proc_info(void)
+     }
+     fclose(fcpu_list);
+ 
+-    num_cpus = count_bits(all_cpus_mask);
+-
+     fnuma_list = fopen("/sys/devices/system/node/online", "r");
+     if (!fnuma_list)
+     {
+-        if (!logical_proc_info_add_numa_node( all_cpus_mask, 0 ))
++        if (!logical_proc_info_add_numa_node( &system_all_win_cores_info, 0 ))
+             return STATUS_NO_MEMORY;
+     }
+     else
+@@ -1180,12 +1444,12 @@ static NTSTATUS create_logical_proc_info(void)
+ 
+             for (i = beg; i <= end; i++)
+             {
+-                ULONG_PTR mask = 0;
++                struct coreset_info mask;
+ 
+                 snprintf(name, sizeof(name), numa_info, i);
+                 if (!sysfs_parse_bitmap( name, &mask )) continue;
+ 
+-                if (!logical_proc_info_add_numa_node( mask, i ))
++                if (!logical_proc_info_add_numa_node( &mask, i ))
+                 {
+                     fclose(fnuma_list);
+                     return STATUS_NO_MEMORY;
+@@ -1195,7 +1459,7 @@ static NTSTATUS create_logical_proc_info(void)
+         fclose(fnuma_list);
+     }
+ 
+-    logical_proc_info_add_group( num_cpus, all_cpus_mask );
++    logical_proc_info_add_group( &system_all_win_cores_info );
+ 
+     performance_cores_capacity = 0;
+     free(performance_cores);
+@@ -1349,7 +1613,7 @@ static NTSTATUS create_logical_proc_info(void)
+ 
+ #ifdef linux
+ 
+-static double tsc_from_jiffies[MAXIMUM_PROCESSORS];
++static double *tsc_from_jiffies;
+ 
+ static void init_tsc_frequency(void)
+ {
+@@ -1359,9 +1623,12 @@ static void init_tsc_frequency(void)
+     unsigned int i;
+     FILE *f;
+ 
+-    for (i = 0; i < MAXIMUM_PROCESSORS; ++i)
++    if (!(tsc_from_jiffies = calloc(sizeof(tsc_from_jiffies[0]), system_max_present_host_cores)))
++        return;
++
++    for (i = 0; i < system_max_present_host_cores; ++i)
+     {
+-        if (system_cpu_mask && !(system_cpu_mask & ((ULONG_PTR)1 << i))) continue;
++        if (system_host_to_win_cpu_map[i] == (USHORT)-1) continue;
+         snprintf( filename, sizeof(filename), "/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency", i );
+         if (!(f = fopen( filename, "r" ))) break;
+         if (fscanf( f, "%lu", &val ) == 1) tsc_from_jiffies[i] = 1000.0 * val / clk_tck;
+@@ -1433,6 +1700,8 @@ void init_cpu_info(void)
+         logical_proc_info_alloc_len = logical_proc_info_len;
+         logical_proc_info_ex = realloc( logical_proc_info_ex, logical_proc_info_ex_size );
+         logical_proc_info_ex_alloc_size = logical_proc_info_ex_size;
++        if (coreset_count( &system_all_win_cores_info ) != peb->NumberOfProcessors)
++            FIXME("Mismatch here\n");
+     }
+     init_tsc_frequency();
+ }
+@@ -2383,7 +2652,7 @@ static void get_performance_info( SYSTEM_PERFORMANCE_INFORMATION *info )
+ 
+ static void get_cpu_idle_cycle_times( ULONG64 *times )
+ {
+-    unsigned int index, host_index, count;
++    unsigned int host_cpu, count;
+     char line[256], name[32];
+     unsigned long long idle;
+     FILE *f;
+@@ -2394,16 +2663,14 @@ static void get_cpu_idle_cycle_times( ULONG64 *times )
+     /* skip combined cpu statistics line. */
+     fgets( line, sizeof(line), f );
+ 
+-    index = 0;
+-    while (fgets( line, sizeof(line), f ) && index < peb->NumberOfProcessors)
++    while (fgets( line, sizeof(line), f ))
+     {
+         count = sscanf(line, "%s %*u %*u %*u %llu", name, &idle);
+ 
+         if (count < 2 || strncmp( name, "cpu", 3 )) break;
+-        host_index = atoi( name + 3 );
+-        if (system_cpu_mask && !(system_cpu_mask & ((ULONG_PTR)1 << host_index))) continue;
+-        times[index] = idle * tsc_from_jiffies[host_index];
+-        ++index;
++        host_cpu = atoi( name + 3 );
++        if (host_cpu < system_max_present_host_cores && system_host_to_win_cpu_map[host_cpu] < peb->NumberOfProcessors)
++            times[system_host_to_win_cpu_map[host_cpu]] = idle * tsc_from_jiffies[host_cpu];
+     }
+ 
+     fclose( f );
+diff --git a/dlls/ntdll/unix/thread.c b/dlls/ntdll/unix/thread.c
+index aea783056a9..7143cf84da8 100644
+--- a/dlls/ntdll/unix/thread.c
++++ b/dlls/ntdll/unix/thread.c
+@@ -2555,13 +2555,15 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+     }
+ }
+ 
+-static unsigned fill_processor_number(unsigned host_processor, PROCESSOR_NUMBER *proc)
++static unsigned fill_processor_number(unsigned host_cpu, PROCESSOR_NUMBER *proc)
+ {
+-    unsigned processor = map_host_processor( host_processor );
+-    if (!proc) return processor % 64;
+-    proc->Group = processor / 64;
++    unsigned win_cpu;
++
++    if (map_host_processor( host_cpu, &win_cpu )) win_cpu = 0;
++    if (!proc) return win_cpu % MAXIMUM_PROC_PER_GROUP;
++    proc->Group = win_cpu / MAXIMUM_PROC_PER_GROUP;
+     proc->Reserved = 0;
+-    return proc->Number = processor % 64;
++    return proc->Number = win_cpu % MAXIMUM_PROC_PER_GROUP;
+ }
+ /******************************************************************************
+  *              NtGetCurrentProcessorNumber  (NTDLL.@)
+diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
+index 03995c9a8a6..c9f6038f370 100644
+--- a/dlls/ntdll/unix/unix_private.h
++++ b/dlls/ntdll/unix/unix_private.h
+@@ -362,7 +362,7 @@ extern void file_complete_async( HANDLE handle, unsigned int options, HANDLE eve
+                                  IO_STATUS_BLOCK *io, NTSTATUS status, ULONG_PTR information );
+ extern void set_async_direct_result( HANDLE *async_handle, unsigned int options, IO_STATUS_BLOCK *io,
+                                      NTSTATUS status, ULONG_PTR information, BOOL mark_pending );
+-extern unsigned map_host_processor(unsigned processor);
++extern NTSTATUS map_host_processor(unsigned host_cpu, unsigned *win_cpu);
+ 
+ extern NTSTATUS unixcall_wine_dbg_write( void *args );
+ extern NTSTATUS unixcall_wine_server_call( void *args );
+-- 
+2.48.1
+
+
+From 4bd9efbe5113b7e748aff47bea3bb94154f0cc6e Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 15:39:26 +0100
+Subject: [PATCH 07/11] server: Store cpu index mapping tables in the server.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ dlls/ntdll/unix/system.c       |  9 ++++
+ include/wine/server_protocol.h | 18 ++++++-
+ server/Makefile.in             |  1 +
+ server/protocol.def            |  8 +++
+ server/request.h               |  4 ++
+ server/request_handlers.h      |  5 ++
+ server/request_trace.h         |  9 ++++
+ server/system.c                | 91 ++++++++++++++++++++++++++++++++++
+ 8 files changed, 144 insertions(+), 1 deletion(-)
+ create mode 100644 server/system.c
+
+diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
+index 68367e55d9b..79b9706e35c 100644
+--- a/dlls/ntdll/unix/system.c
++++ b/dlls/ntdll/unix/system.c
+@@ -1229,6 +1229,7 @@ done:
+ 
+ static NTSTATUS build_cpu_map_tables(void)
+ {
++    NTSTATUS status;
+     FILE *fcpu_list;
+     unsigned int beg, end, host_cpu, win_cpu;
+     char op;
+@@ -1272,6 +1273,14 @@ static NTSTATUS build_cpu_map_tables(void)
+     FIXME("Working on %u cores across %u processor groups\n",
+           win_cpu, system_max_processor_groups);
+ 
++    SERVER_START_REQ( store_cpu_maps )
++    {
++        req->host_to_win_map_len = system_max_present_host_cores * sizeof(system_host_to_win_cpu_map[0]);
++        wine_server_add_data( req, system_host_to_win_cpu_map, req->host_to_win_map_len );
++        status = wine_server_call( req );
++    }
++    SERVER_END_REQ;
++    if (status) FIXME("failed with %x\n", status);
+     return STATUS_SUCCESS;
+ }
+ 
+diff --git a/include/wine/server_protocol.h b/include/wine/server_protocol.h
+index a39ab123970..3f55aec476e 100644
+--- a/include/wine/server_protocol.h
++++ b/include/wine/server_protocol.h
+@@ -5883,6 +5883,19 @@ struct set_keyboard_repeat_reply
+ };
+ 
+ 
++
++struct store_cpu_maps_request
++{
++    struct request_header __header;
++    data_size_t host_to_win_map_len;
++    /* VARARG(host_to_win_map,ushorts); */
++};
++struct store_cpu_maps_reply
++{
++    struct reply_header __header;
++};
++
++
+ enum request
+ {
+     REQ_new_process,
+@@ -6177,6 +6190,7 @@ enum request
+     REQ_resume_process,
+     REQ_get_next_thread,
+     REQ_set_keyboard_repeat,
++    REQ_store_cpu_maps,
+     REQ_NB_REQUESTS
+ };
+ 
+@@ -6476,6 +6490,7 @@ union generic_request
+     struct resume_process_request resume_process_request;
+     struct get_next_thread_request get_next_thread_request;
+     struct set_keyboard_repeat_request set_keyboard_repeat_request;
++    struct store_cpu_maps_request store_cpu_maps_request;
+ };
+ union generic_reply
+ {
+@@ -6773,8 +6788,9 @@ union generic_reply
+     struct resume_process_reply resume_process_reply;
+     struct get_next_thread_reply get_next_thread_reply;
+     struct set_keyboard_repeat_reply set_keyboard_repeat_reply;
++    struct store_cpu_maps_reply store_cpu_maps_reply;
+ };
+ 
+-#define SERVER_PROTOCOL_VERSION 855
++#define SERVER_PROTOCOL_VERSION 856
+ 
+ #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
+diff --git a/server/Makefile.in b/server/Makefile.in
+index 7e571ac2ba6..a2d37e76fd0 100644
+--- a/server/Makefile.in
++++ b/server/Makefile.in
+@@ -35,6 +35,7 @@ SOURCES = \
+ 	signal.c \
+ 	sock.c \
+ 	symlink.c \
++        system.c \
+ 	thread.c \
+ 	timer.c \
+ 	token.c \
+diff --git a/server/protocol.def b/server/protocol.def
+index 292303c385f..832837914c4 100644
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -4079,3 +4079,11 @@ struct handle_info
+ @REPLY
+     int enable;                /* previous state of auto-repeat enable */
+ @END
++
++
++/* Send host <> win cpu map table */
++@REQ(store_cpu_maps)
++    data_size_t host_to_win_map_len;
++    VARARG(host_to_win_map,ushorts);
++@REPLY
++@END
+diff --git a/server/request.h b/server/request.h
+index 13254d967ed..8480a316200 100644
+--- a/server/request.h
++++ b/server/request.h
+@@ -115,4 +115,8 @@ static inline void set_reply_data_ptr( void *data, data_size_t size )
+     current->reply_data = data;
+ }
+ 
++#define CPU_NOT_MAPPED ((unsigned)-1)
++extern unsigned int system_map_host_to_win_cpu( unsigned int cpu );
++extern unsigned int system_map_win_to_host_cpu( unsigned int cpu );
++
+ #endif  /* __WINE_SERVER_REQUEST_H */
+diff --git a/server/request_handlers.h b/server/request_handlers.h
+index fd39842df56..a12bb4b197b 100644
+--- a/server/request_handlers.h
++++ b/server/request_handlers.h
+@@ -299,6 +299,7 @@ DECL_HANDLER(suspend_process);
+ DECL_HANDLER(resume_process);
+ DECL_HANDLER(get_next_thread);
+ DECL_HANDLER(set_keyboard_repeat);
++DECL_HANDLER(store_cpu_maps);
+ 
+ typedef void (*req_handler)( const void *req, void *reply );
+ static const req_handler req_handlers[REQ_NB_REQUESTS] =
+@@ -595,6 +596,7 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
+     (req_handler)req_resume_process,
+     (req_handler)req_get_next_thread,
+     (req_handler)req_set_keyboard_repeat,
++    (req_handler)req_store_cpu_maps,
+ };
+ 
+ C_ASSERT( sizeof(abstime_t) == 8 );
+@@ -2270,3 +2272,6 @@ C_ASSERT( offsetof(struct set_keyboard_repeat_request, period) == 20 );
+ C_ASSERT( sizeof(struct set_keyboard_repeat_request) == 24 );
+ C_ASSERT( offsetof(struct set_keyboard_repeat_reply, enable) == 8 );
+ C_ASSERT( sizeof(struct set_keyboard_repeat_reply) == 16 );
++C_ASSERT( offsetof(struct store_cpu_maps_request, host_to_win_map_len) == 12 );
++C_ASSERT( sizeof(struct store_cpu_maps_request) == 16 );
++C_ASSERT( sizeof(struct store_cpu_maps_reply) == 8 );
+diff --git a/server/request_trace.h b/server/request_trace.h
+index 6e38f2a8379..e748d93ed01 100644
+--- a/server/request_trace.h
++++ b/server/request_trace.h
+@@ -3344,6 +3344,12 @@ static void dump_set_keyboard_repeat_reply( const struct set_keyboard_repeat_rep
+     fprintf( stderr, " enable=%d", req->enable );
+ }
+ 
++static void dump_store_cpu_maps_request( const struct store_cpu_maps_request *req )
++{
++    fprintf( stderr, " host_to_win_map_len=%u", req->host_to_win_map_len );
++    dump_varargs_ushorts( ", host_to_win_map=", cur_size );
++}
++
+ typedef void (*dump_func)( const void *req );
+ 
+ static const dump_func req_dumpers[REQ_NB_REQUESTS] =
+@@ -3640,6 +3646,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] =
+     (dump_func)dump_resume_process_request,
+     (dump_func)dump_get_next_thread_request,
+     (dump_func)dump_set_keyboard_repeat_request,
++    (dump_func)dump_store_cpu_maps_request,
+ };
+ 
+ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
+@@ -3936,6 +3943,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
+     NULL,
+     (dump_func)dump_get_next_thread_reply,
+     (dump_func)dump_set_keyboard_repeat_reply,
++    NULL,
+ };
+ 
+ static const char * const req_names[REQ_NB_REQUESTS] =
+@@ -4232,6 +4240,7 @@ static const char * const req_names[REQ_NB_REQUESTS] =
+     "resume_process",
+     "get_next_thread",
+     "set_keyboard_repeat",
++    "store_cpu_maps",
+ };
+ 
+ static const struct
+diff --git a/server/system.c b/server/system.c
+new file mode 100644
+index 00000000000..07da54eafbe
+--- /dev/null
++++ b/server/system.c
+@@ -0,0 +1,91 @@
++/*
++ * System wide informations
++ *
++ * Copyright (C) 2025 Eric Pouech for CodeWeavers
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "config.h"
++
++#include <string.h>
++#include <stdlib.h>
++
++#include <stdio.h> // FIXME for debugging
++
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++#include "request.h"
++
++static unsigned int        num_host_cpus;
++static unsigned int        num_win_cpus;
++static unsigned short int *host_to_win_map;
++static unsigned short int *win_to_host_map;
++
++unsigned int system_map_host_to_win_cpu( unsigned int cpu )
++{
++    return cpu < num_host_cpus ? (short int)host_to_win_map[cpu] : CPU_NOT_MAPPED;
++}
++
++unsigned int system_map_win_to_host_cpu( unsigned int cpu )
++{
++    return cpu < num_win_cpus ? (short int)win_to_host_map[cpu] : CPU_NOT_MAPPED;
++}
++
++static int install_maps( unsigned num_host, const unsigned short int *map )
++{
++    unsigned int i, num_win;
++    size_t size;
++
++    /* already installed, check equivalence */
++    if (host_to_win_map)
++        return num_host_cpus == num_host && !memcmp( host_to_win_map, map, num_host * sizeof(map[0]) );
++
++    for (num_win = i = 0; i < num_host; i++)
++        if (map[i] != (unsigned short int)-1) num_win++;
++
++    size = num_host * sizeof(host_to_win_map[0]) +
++           num_win * sizeof(win_to_host_map[0]);
++
++    if (!(host_to_win_map = malloc( size ))) return 0;
++    win_to_host_map = (unsigned short int *)((char *)host_to_win_map + num_host * sizeof(host_to_win_map[0]));
++
++    num_host_cpus = num_host;
++    num_win_cpus = num_win;
++
++    memcpy( host_to_win_map, map, num_host * sizeof(map[0]) );
++    for (i = 0; i < num_win; i++)
++        win_to_host_map[i] = (unsigned short int)-1;
++    for (i = 0; i < num_host; i++)
++    {
++        if (map[i] == (unsigned short int)-1 || map[i] >= num_win_cpus) continue;
++        win_to_host_map[map[i]] = i;
++    }
++
++    return 1;
++}
++
++DECL_HANDLER(store_cpu_maps)
++{
++    data_size_t in_size = get_req_data_size();
++    if (!in_size || (in_size & 1))
++    {
++        set_error( STATUS_ACCESS_VIOLATION );
++    }
++    else if (!install_maps( in_size / sizeof( short unsigned int ), get_req_data() ))
++    {
++        set_error( STATUS_INVALID_PARAMETER );
++    }
++}
+-- 
+2.48.1
+
+
+From 4a65221bc0dcfaa0e9086ceae51029c296667310 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 17:12:13 +0100
+Subject: [PATCH 08/11] ntdll,server: Move system affinity masks handling to
+ server.
+
+Except one instance of set_thread_info request that will be fixed later on.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ dlls/ntdll/unix/process.c | 14 +++-----------
+ dlls/ntdll/unix/thread.c  | 12 ++++--------
+ server/process.c          |  9 ++++++++-
+ server/process.h          |  1 +
+ server/request.h          |  1 +
+ server/system.c           | 17 +++++++++++++++--
+ server/thread.c           |  9 ++++++---
+ 7 files changed, 38 insertions(+), 25 deletions(-)
+
+diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
+index 0c8b4bb9c67..8924b84a425 100644
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -1144,7 +1144,6 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
+     case ProcessBasicInformation:
+         {
+             PROCESS_BASIC_INFORMATION pbi;
+-            const ULONG_PTR affinity_mask = get_system_affinity_mask();
+ 
+             if (size >= sizeof(PROCESS_BASIC_INFORMATION))
+             {
+@@ -1158,7 +1157,7 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
+                         {
+                             pbi.ExitStatus = reply->exit_code;
+                             pbi.PebBaseAddress = wine_server_get_ptr( reply->peb );
+-                            pbi.AffinityMask = reply->affinity & affinity_mask;
++                            pbi.AffinityMask = reply->affinity;
+                             pbi.BasePriority = reply->priority;
+                             pbi.UniqueProcessId = reply->pid;
+                             pbi.InheritedFromUniqueProcessId = reply->ppid;
+@@ -1402,13 +1401,11 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
+         len = sizeof(ULONG_PTR);
+         if (size == len)
+         {
+-            const ULONG_PTR system_mask = get_system_affinity_mask();
+-
+             SERVER_START_REQ(get_process_info)
+             {
+                 req->handle = wine_server_obj_handle( handle );
+                 if (!(ret = wine_server_call( req )))
+-                    *(ULONG_PTR *)info = reply->affinity & system_mask;
++                    *(ULONG_PTR *)info = reply->affinity;
+             }
+             SERVER_END_REQ;
+         }
+@@ -1638,7 +1635,6 @@ NTSTATUS WINAPI NtWow64QueryInformationProcess64( HANDLE handle, PROCESSINFOCLAS
+     case ProcessBasicInformation:
+         {
+             PROCESS_BASIC_INFORMATION64 pbi;
+-            const ULONG_PTR affinity_mask = get_system_affinity_mask();
+ 
+             if (size >= sizeof(PROCESS_BASIC_INFORMATION64))
+             {
+@@ -1652,7 +1648,7 @@ NTSTATUS WINAPI NtWow64QueryInformationProcess64( HANDLE handle, PROCESSINFOCLAS
+                         {
+                             pbi.ExitStatus = reply->exit_code;
+                             pbi.PebBaseAddress = (ULONG)wine_server_get_ptr( reply->peb );
+-                            pbi.AffinityMask = reply->affinity & affinity_mask;
++                            pbi.AffinityMask = reply->affinity;
+                             pbi.BasePriority = reply->priority;
+                             pbi.UniqueProcessId = reply->pid;
+                             pbi.InheritedFromUniqueProcessId = reply->ppid;
+@@ -1716,11 +1712,7 @@ NTSTATUS WINAPI NtSetInformationProcess( HANDLE handle, PROCESSINFOCLASS class,
+ 
+     case ProcessAffinityMask:
+     {
+-        const ULONG_PTR system_mask = get_system_affinity_mask();
+-
+         if (size != sizeof(DWORD_PTR)) return STATUS_INVALID_PARAMETER;
+-        if (*(PDWORD_PTR)info & ~system_mask)
+-            return STATUS_INVALID_PARAMETER;
+         if (!*(PDWORD_PTR)info)
+             return STATUS_INVALID_PARAMETER;
+         SERVER_START_REQ( set_process_info )
+diff --git a/dlls/ntdll/unix/thread.c b/dlls/ntdll/unix/thread.c
+index 7143cf84da8..448ee5f20c7 100644
+--- a/dlls/ntdll/unix/thread.c
++++ b/dlls/ntdll/unix/thread.c
+@@ -2048,7 +2048,6 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+     case ThreadBasicInformation:
+     {
+         THREAD_BASIC_INFORMATION info;
+-        const ULONG_PTR affinity_mask = get_system_affinity_mask();
+ 
+         SERVER_START_REQ( get_thread_info )
+         {
+@@ -2059,7 +2058,7 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+                 info.TebBaseAddress         = wine_server_get_ptr( reply->teb );
+                 info.ClientId.UniqueProcess = ULongToHandle(reply->pid);
+                 info.ClientId.UniqueThread  = ULongToHandle(reply->tid);
+-                info.AffinityMask           = reply->affinity & affinity_mask;
++                info.AffinityMask           = reply->affinity;
+                 info.Priority               = reply->priority;
+                 info.BasePriority           = reply->priority;  /* FIXME */
+             }
+@@ -2082,14 +2081,13 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+ 
+     case ThreadAffinityMask:
+     {
+-        const ULONG_PTR affinity_mask = get_system_affinity_mask();
+         ULONG_PTR affinity = 0;
+ 
+         SERVER_START_REQ( get_thread_info )
+         {
+             req->handle = wine_server_obj_handle( handle );
+             req->access = THREAD_QUERY_INFORMATION;
+-            if (!(status = wine_server_call( req ))) affinity = reply->affinity & affinity_mask;
++            if (!(status = wine_server_call( req ))) affinity = reply->affinity;
+         }
+         SERVER_END_REQ;
+         if (status == STATUS_SUCCESS)
+@@ -2182,7 +2180,6 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+ 
+     case ThreadGroupInformation:
+     {
+-        const ULONG_PTR affinity_mask = get_system_affinity_mask();
+         GROUP_AFFINITY affinity;
+ 
+         memset( &affinity, 0, sizeof(affinity) );
+@@ -2191,7 +2188,7 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+         SERVER_START_REQ( get_thread_info )
+         {
+             req->handle = wine_server_obj_handle( handle );
+-            if (!(status = wine_server_call( req ))) affinity.Mask = reply->affinity & affinity_mask;
++            if (!(status = wine_server_call( req ))) affinity.Mask = reply->affinity;
+         }
+         SERVER_END_REQ;
+         if (status == STATUS_SUCCESS)
+@@ -2382,11 +2379,10 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+ 
+     case ThreadAffinityMask:
+     {
+-        const ULONG_PTR affinity_mask = get_system_affinity_mask();
+         ULONG_PTR req_aff;
+ 
+         if (length != sizeof(ULONG_PTR)) return STATUS_INVALID_PARAMETER;
+-        req_aff = *(const ULONG_PTR *)data & affinity_mask;
++        req_aff = *(const ULONG_PTR *)data;
+         if (!req_aff) return STATUS_INVALID_PARAMETER;
+ 
+         SERVER_START_REQ( set_thread_info )
+diff --git a/server/process.c b/server/process.c
+index e06350f7311..df9b0270570 100644
+--- a/server/process.c
++++ b/server/process.c
+@@ -713,6 +713,7 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
+     {
+         process->handles = alloc_handle_table( process, 0 );
+         process->token = token_create_admin( TRUE, -1, TokenElevationTypeLimited, default_session_id );
++        process->processor_group = 0;
+         process->affinity = ~0;
+     }
+     else
+@@ -731,6 +732,7 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
+         /* Note: for security reasons, starting a new process does not attempt
+          * to use the current impersonation token for the new process */
+         process->token = token_duplicate( token ? token : parent->token, TRUE, 0, NULL, NULL, 0, NULL, 0 );
++        process->processor_group = 0;
+         process->affinity = parent->affinity;
+     }
+     if (!process->handles || !process->token) goto error;
+@@ -1478,7 +1480,7 @@ DECL_HANDLER(get_process_info)
+         reply->ppid             = process->parent_id;
+         reply->exit_code        = process->exit_code;
+         reply->priority         = process->priority;
+-        reply->affinity         = process->affinity;
++        reply->affinity         = process->affinity & system_processor_group_system_affinity( process->processor_group );
+         reply->peb              = process->peb;
+         reply->start_time       = process->start_time;
+         reply->end_time         = process->end_time;
+@@ -1608,6 +1610,11 @@ static void set_process_affinity( struct process *process, affinity_t affinity )
+         set_error( STATUS_PROCESS_IS_TERMINATING );
+         return;
+     }
++    if (affinity & ~system_processor_group_system_affinity( process->processor_group) )
++    {
++        set_error( STATUS_INVALID_PARAMETER );
++        return;
++    }
+ 
+     process->affinity = affinity;
+ 
+diff --git a/server/process.h b/server/process.h
+index 96814ab7cf8..9eb8ad138e0 100644
+--- a/server/process.h
++++ b/server/process.h
+@@ -55,6 +55,7 @@ struct process
+     timeout_t            start_time;      /* absolute time at process start */
+     timeout_t            end_time;        /* absolute time at process end */
+     affinity_t           affinity;        /* process affinity mask */
++    int                  processor_group; /* processor group */
+     int                  priority;        /* priority class */
+     int                  suspend;         /* global process suspend count */
+     unsigned int         is_system:1;     /* is it a system process? */
+diff --git a/server/request.h b/server/request.h
+index 8480a316200..fbda09855f9 100644
+--- a/server/request.h
++++ b/server/request.h
+@@ -118,5 +118,6 @@ static inline void set_reply_data_ptr( void *data, data_size_t size )
+ #define CPU_NOT_MAPPED ((unsigned)-1)
+ extern unsigned int system_map_host_to_win_cpu( unsigned int cpu );
+ extern unsigned int system_map_win_to_host_cpu( unsigned int cpu );
++extern affinity_t system_processor_group_system_affinity( unsigned group );
+ 
+ #endif  /* __WINE_SERVER_REQUEST_H */
+diff --git a/server/system.c b/server/system.c
+index 07da54eafbe..80f86d4bdf1 100644
+--- a/server/system.c
++++ b/server/system.c
+@@ -33,6 +33,8 @@ static unsigned int        num_host_cpus;
+ static unsigned int        num_win_cpus;
+ static unsigned short int *host_to_win_map;
+ static unsigned short int *win_to_host_map;
++static unsigned int        num_processor_groups;
++static affinity_t         *processor_group_system_affinity;
+ 
+ unsigned int system_map_host_to_win_cpu( unsigned int cpu )
+ {
+@@ -44,9 +46,14 @@ unsigned int system_map_win_to_host_cpu( unsigned int cpu )
+     return cpu < num_win_cpus ? (short int)win_to_host_map[cpu] : CPU_NOT_MAPPED;
+ }
+ 
++affinity_t system_processor_group_system_affinity( unsigned group )
++{
++    return group < num_processor_groups ? processor_group_system_affinity[group] : 0;
++}
++
+ static int install_maps( unsigned num_host, const unsigned short int *map )
+ {
+-    unsigned int i, num_win;
++    unsigned int i, num_win, num_proc_group;
+     size_t size;
+ 
+     /* already installed, check equivalence */
+@@ -56,22 +63,28 @@ static int install_maps( unsigned num_host, const unsigned short int *map )
+     for (num_win = i = 0; i < num_host; i++)
+         if (map[i] != (unsigned short int)-1) num_win++;
+ 
++    num_proc_group = (num_win + 63) / 64;
+     size = num_host * sizeof(host_to_win_map[0]) +
+-           num_win * sizeof(win_to_host_map[0]);
++           num_win * sizeof(win_to_host_map[0]) +
++           num_proc_group * sizeof(processor_group_system_affinity[0]);
+ 
+     if (!(host_to_win_map = malloc( size ))) return 0;
+     win_to_host_map = (unsigned short int *)((char *)host_to_win_map + num_host * sizeof(host_to_win_map[0]));
++    processor_group_system_affinity = (affinity_t *)((char *)win_to_host_map + num_win * sizeof(host_to_win_map[0]));
+ 
+     num_host_cpus = num_host;
+     num_win_cpus = num_win;
++    num_processor_groups = num_proc_group;
+ 
+     memcpy( host_to_win_map, map, num_host * sizeof(map[0]) );
+     for (i = 0; i < num_win; i++)
+         win_to_host_map[i] = (unsigned short int)-1;
++    memset( processor_group_system_affinity, 0, num_proc_group * sizeof(processor_group_system_affinity[0]) );
+     for (i = 0; i < num_host; i++)
+     {
+         if (map[i] == (unsigned short int)-1 || map[i] >= num_win_cpus) continue;
+         win_to_host_map[map[i]] = i;
++        processor_group_system_affinity[map[i] / 64] |= (affinity_t)1 << (map[i] % 64);
+     }
+ 
+     return 1;
+diff --git a/server/thread.c b/server/thread.c
+index 88b953709ef..884f174a332 100644
+--- a/server/thread.c
++++ b/server/thread.c
+@@ -704,11 +704,14 @@ static void set_thread_info( struct thread *thread,
+     }
+     if (req->mask & SET_THREAD_INFO_AFFINITY)
+     {
+-        if ((req->affinity & thread->process->affinity) != req->affinity)
++        affinity_t affinity = req->affinity;
++
++        affinity &= system_processor_group_system_affinity( thread->process->processor_group );
++        if ((affinity & thread->process->affinity) != affinity)
+             set_error( STATUS_INVALID_PARAMETER );
+         else if (thread->state == TERMINATED)
+             set_error( STATUS_THREAD_IS_TERMINATING );
+-        else if (set_thread_affinity( thread, req->affinity ))
++        else if (set_thread_affinity( thread, affinity ))
+             file_set_error();
+     }
+     if (req->mask & SET_THREAD_INFO_TOKEN)
+@@ -1577,7 +1580,7 @@ DECL_HANDLER(get_thread_info)
+         reply->entry_point    = thread->entry_point;
+         reply->exit_code      = (thread->state == TERMINATED) ? thread->exit_code : STATUS_PENDING;
+         reply->priority       = thread->priority;
+-        reply->affinity       = thread->affinity;
++        reply->affinity       = thread->affinity & system_processor_group_system_affinity( thread->process->processor_group );
+         reply->last           = thread->process->running_threads == 1;
+         reply->suspend_count  = thread->suspend;
+         reply->desc_len       = thread->desc_len;
+-- 
+2.48.1
+
+
+From be890908df505cdf5fcb74b4a5755c5ed734cf1d Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 09:19:28 +0100
+Subject: [PATCH 09/11] ntdll,server: Support restricting a thread to a
+ processor group.
+
+On Linux for now.
+---
+ dlls/kernel32/tests/thread.c   | 10 ++++----
+ dlls/ntdll/unix/process.c      |  1 +
+ dlls/ntdll/unix/thread.c       | 16 ++++++-------
+ dlls/ntdll/unix/unix_private.h |  1 -
+ dlls/ntdll/unix/virtual.c      |  2 +-
+ include/wine/server_protocol.h | 13 +++++++----
+ server/process.c               |  2 +-
+ server/process.h               |  1 +
+ server/protocol.def            | 19 ++++++++-------
+ server/request.h               |  1 +
+ server/request_handlers.h      | 21 +++++++++--------
+ server/request_trace.h         |  5 +++-
+ server/system.c                |  5 ++++
+ server/thread.c                | 42 ++++++++++++++++++++++++----------
+ server/thread.h                |  3 ++-
+ 15 files changed, 91 insertions(+), 51 deletions(-)
+
+diff --git a/dlls/kernel32/tests/thread.c b/dlls/kernel32/tests/thread.c
+index a1314b69309..67ab46f7298 100644
+--- a/dlls/kernel32/tests/thread.c
++++ b/dlls/kernel32/tests/thread.c
+@@ -1075,14 +1075,14 @@ static void test_thread_processor_group(void)
+             gaff.Group = group;
+             gaff.Mask = (ULONG_PTR)1 << idx;
+             ret = pSetThreadGroupAffinity(GetCurrentThread(), &gaff, NULL);
+-            todo_wine_if(group)  ok(ret, "Couldn't set affinity to logical processor\n");
++            ok(ret, "Couldn't set affinity to logical processor\n");
+             pGetCurrentProcessorNumberEx(&proc);
+-            todo_wine_if(group) ok(proc.Group == group, "Unexpected processor group\n");
++            ok(proc.Group == group, "Unexpected processor group\n");
+             ok(proc.Number == idx, "Unexpected processor group\n");
+             memset(&gaff2, 0xA5, sizeof(gaff2));
+             ret = pGetThreadGroupAffinity(GetCurrentThread(), &gaff2);
+             ok(ret, "GetThreadGroupAffinity failed\n");
+-            todo_wine_if(group) ok(!memcmp(&gaff, &gaff2, sizeof(gaff)), "Should have same result\n");
++            ok(!memcmp(&gaff, &gaff2, sizeof(gaff)), "Should have same result\n");
+             num_tested_groups++;
+         }
+         if (mask && mask != ~(ULONG_PTR)0)
+@@ -1117,11 +1117,11 @@ static void test_thread_processor_group(void)
+     gaff.Group = 1;
+     memcpy(&gaff.Mask, &info->Group.GroupInfo[1].ActiveProcessorMask, sizeof(gaff.Mask));
+     ret = pSetThreadGroupAffinity(thd1, &gaff, NULL);
+-    todo_wine ok(ret, "Couldn't set affinity to logical processor\n");
++    ok(ret, "Couldn't set affinity to logical processor\n");
+     memset(&gaff2, 0xA5, sizeof(gaff2));
+     ret = pGetThreadGroupAffinity(thd1, &gaff2);
+     ok(ret, "GetThreadGroupAffinity failed\n");
+-    todo_wine ok(gaff.Group == gaff2.Group, "Should have same group\n");
++    ok(gaff.Group == gaff2.Group, "Should have same group\n");
+     ok(gaff.Mask == gaff2.Mask, "Should have same affinity mask\n");
+ 
+     memset(groups, 0xA5, sizeof(groups));
+diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
+index 8924b84a425..fb0fe301a23 100644
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -1718,6 +1718,7 @@ NTSTATUS WINAPI NtSetInformationProcess( HANDLE handle, PROCESSINFOCLASS class,
+         SERVER_START_REQ( set_process_info )
+         {
+             req->handle   = wine_server_obj_handle( handle );
++            req->group    = -1;
+             req->affinity = *(PDWORD_PTR)info;
+             req->mask     = SET_PROCESS_INFO_AFFINITY;
+             ret = wine_server_call( req );
+diff --git a/dlls/ntdll/unix/thread.c b/dlls/ntdll/unix/thread.c
+index 448ee5f20c7..a7aed6b107b 100644
+--- a/dlls/ntdll/unix/thread.c
++++ b/dlls/ntdll/unix/thread.c
+@@ -2151,7 +2151,7 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+             status = wine_server_call( req );
+             if (status == STATUS_SUCCESS)
+             {
+-                ULONG last = reply->last;
++                ULONG last = reply->last != 0;
+                 if (data) memcpy( data, &last, sizeof(last) );
+                 if (ret_len) *ret_len = sizeof(last);
+             }
+@@ -2183,12 +2183,15 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+         GROUP_AFFINITY affinity;
+ 
+         memset( &affinity, 0, sizeof(affinity) );
+-        affinity.Group = 0; /* Wine only supports max 64 processors */
+ 
+         SERVER_START_REQ( get_thread_info )
+         {
+             req->handle = wine_server_obj_handle( handle );
+-            if (!(status = wine_server_call( req ))) affinity.Mask = reply->affinity;
++            if (!(status = wine_server_call( req )))
++            {
++                affinity.Group = reply->group;
++                affinity.Mask = reply->affinity;
++            }
+         }
+         SERVER_END_REQ;
+         if (status == STATUS_SUCCESS)
+@@ -2388,6 +2391,7 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+         SERVER_START_REQ( set_thread_info )
+         {
+             req->handle   = wine_server_obj_handle( handle );
++            req->group    = -1;
+             req->affinity = req_aff;
+             req->mask     = SET_THREAD_INFO_AFFINITY;
+             status = wine_server_call( req );
+@@ -2424,7 +2428,6 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+ 
+     case ThreadGroupInformation:
+     {
+-        const ULONG_PTR affinity_mask = get_system_affinity_mask();
+         const GROUP_AFFINITY *req_aff;
+ 
+         if (length != sizeof(*req_aff)) return STATUS_INVALID_PARAMETER;
+@@ -2435,13 +2438,10 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+         if (req_aff->Reserved[0] || req_aff->Reserved[1] || req_aff->Reserved[2])
+             return STATUS_INVALID_PARAMETER;
+ 
+-        /* Wine only supports max 64 processors */
+-        if (req_aff->Group) return STATUS_INVALID_PARAMETER;
+-        if (req_aff->Mask & ~affinity_mask) return STATUS_INVALID_PARAMETER;
+-        if (!req_aff->Mask) return STATUS_INVALID_PARAMETER;
+         SERVER_START_REQ( set_thread_info )
+         {
+             req->handle   = wine_server_obj_handle( handle );
++            req->group    = req_aff->Group;
+             req->affinity = req_aff->Mask;
+             req->mask     = SET_THREAD_INFO_AFFINITY;
+             status = wine_server_call( req );
+diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
+index c9f6038f370..2883a0c4636 100644
+--- a/dlls/ntdll/unix/unix_private.h
++++ b/dlls/ntdll/unix/unix_private.h
+@@ -267,7 +267,6 @@ extern NTSTATUS system_time_precise( void *args );
+ extern void *anon_mmap_fixed( void *start, size_t size, int prot, int flags );
+ extern void *anon_mmap_alloc( size_t size, int prot );
+ extern void virtual_init(void);
+-extern ULONG_PTR get_system_affinity_mask(void);
+ extern void virtual_get_system_info( SYSTEM_BASIC_INFORMATION *info, BOOL wow64 );
+ extern NTSTATUS virtual_map_builtin_module( HANDLE mapping, void **module, SIZE_T *size,
+                                             SECTION_IMAGE_INFORMATION *info, ULONG_PTR limit_low,
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index 0c0a12c394d..8fe21153f1e 100644
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -3382,7 +3382,7 @@ void virtual_init(void)
+ /***********************************************************************
+  *           get_system_affinity_mask
+  */
+-ULONG_PTR get_system_affinity_mask(void)
++static ULONG_PTR get_system_affinity_mask(void)
+ {
+     ULONG num_cpus = peb->NumberOfProcessors;
+     if (num_cpus >= sizeof(ULONG_PTR) * 8) return ~(ULONG_PTR)0;
+diff --git a/include/wine/server_protocol.h b/include/wine/server_protocol.h
+index 3f55aec476e..7bc6414880a 100644
+--- a/include/wine/server_protocol.h
++++ b/include/wine/server_protocol.h
+@@ -1266,9 +1266,11 @@ struct set_process_info_request
+     obj_handle_t handle;
+     int          mask;
+     int          priority;
++    int          group;
++    char __pad_28[4];
+     affinity_t   affinity;
+     obj_handle_t token;
+-    char __pad_36[4];
++    char __pad_44[4];
+ };
+ struct set_process_info_reply
+ {
+@@ -1297,8 +1299,9 @@ struct get_thread_info_reply
+     affinity_t   affinity;
+     int          exit_code;
+     int          priority;
+-    int          last;
+     int          suspend_count;
++    short int    last;
++    short int    group;
+     unsigned int flags;
+     data_size_t  desc_len;
+     /* VARARG(desc,unicode_str); */
+@@ -1330,11 +1333,13 @@ struct set_thread_info_request
+     obj_handle_t handle;
+     int          mask;
+     int          priority;
++    int          group;
++    char __pad_28[4];
+     affinity_t   affinity;
+     client_ptr_t entry_point;
+     obj_handle_t token;
+     /* VARARG(desc,unicode_str); */
+-    char __pad_44[4];
++    char __pad_52[4];
+ };
+ struct set_thread_info_reply
+ {
+@@ -6791,6 +6796,6 @@ union generic_reply
+     struct store_cpu_maps_reply store_cpu_maps_reply;
+ };
+ 
+-#define SERVER_PROTOCOL_VERSION 856
++#define SERVER_PROTOCOL_VERSION 857
+ 
+ #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
+diff --git a/server/process.c b/server/process.c
+index df9b0270570..e20051340fd 100644
+--- a/server/process.c
++++ b/server/process.c
+@@ -1620,7 +1620,7 @@ static void set_process_affinity( struct process *process, affinity_t affinity )
+ 
+     LIST_FOR_EACH_ENTRY( thread, &process->thread_list, struct thread, proc_entry )
+     {
+-        set_thread_affinity( thread, affinity );
++        set_thread_affinity( thread, thread->processor_group, affinity );
+     }
+ }
+ 
+diff --git a/server/process.h b/server/process.h
+index 9eb8ad138e0..c2cd6d0bd30 100644
+--- a/server/process.h
++++ b/server/process.h
+@@ -54,6 +54,7 @@ struct process
+     int                  running_threads; /* number of threads running in this process */
+     timeout_t            start_time;      /* absolute time at process start */
+     timeout_t            end_time;        /* absolute time at process end */
++    int                  group;           /* process group */
+     affinity_t           affinity;        /* process affinity mask */
+     int                  processor_group; /* processor group */
+     int                  priority;        /* priority class */
+diff --git a/server/protocol.def b/server/protocol.def
+index 832837914c4..810c2a1e09e 100644
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -1200,6 +1200,7 @@ struct obj_locator
+     obj_handle_t handle;       /* process handle */
+     int          mask;         /* setting mask (see below) */
+     int          priority;     /* priority class */
++    int          group;        /* process group (part of INFO_AFFINITY) */
+     affinity_t   affinity;     /* affinity mask */
+     obj_handle_t token;        /* primary token */
+ @END
+@@ -1220,8 +1221,9 @@ struct obj_locator
+     affinity_t   affinity;      /* thread affinity mask */
+     int          exit_code;     /* thread exit code */
+     int          priority;      /* thread priority level */
+-    int          last;          /* last thread in process */
+     int          suspend_count; /* thread suspend count */
++    short int    last;          /* last thread in process */
++    short int    group;
+     unsigned int flags;         /* GET_THREAD_INFO_FLAG_ flags */
+     data_size_t  desc_len;      /* description length in bytes */
+     VARARG(desc,unicode_str);   /* description string */
+@@ -1243,13 +1245,14 @@ struct obj_locator
+ 
+ /* Set a thread information */
+ @REQ(set_thread_info)
+-    obj_handle_t handle;       /* thread handle */
+-    int          mask;         /* setting mask (see below) */
+-    int          priority;     /* priority class */
+-    affinity_t   affinity;     /* affinity mask */
+-    client_ptr_t entry_point;  /* thread entry point */
+-    obj_handle_t token;        /* impersonation token */
+-    VARARG(desc,unicode_str);  /* description string */
++    obj_handle_t handle;           /* thread handle */
++    int          mask;             /* setting mask (see below) */
++    int          priority;         /* priority class */
++    int          group;            /* processor group (or -1 for current) (part of INFO_AFFINITY) */
++    affinity_t   affinity;         /* affinity mask */
++    client_ptr_t entry_point;      /* thread entry point */
++    obj_handle_t token;            /* impersonation token */
++    VARARG(desc,unicode_str);      /* description string */
+ @END
+ #define SET_THREAD_INFO_PRIORITY    0x01
+ #define SET_THREAD_INFO_AFFINITY    0x02
+diff --git a/server/request.h b/server/request.h
+index fbda09855f9..d09fdd9e201 100644
+--- a/server/request.h
++++ b/server/request.h
+@@ -119,5 +119,6 @@ static inline void set_reply_data_ptr( void *data, data_size_t size )
+ extern unsigned int system_map_host_to_win_cpu( unsigned int cpu );
+ extern unsigned int system_map_win_to_host_cpu( unsigned int cpu );
+ extern affinity_t system_processor_group_system_affinity( unsigned group );
++extern unsigned int system_max_processor_groups( void );
+ 
+ #endif  /* __WINE_SERVER_REQUEST_H */
+diff --git a/server/request_handlers.h b/server/request_handlers.h
+index a12bb4b197b..d6968a3a0c2 100644
+--- a/server/request_handlers.h
++++ b/server/request_handlers.h
+@@ -755,9 +755,10 @@ C_ASSERT( sizeof(struct get_process_vm_counters_reply) == 56 );
+ C_ASSERT( offsetof(struct set_process_info_request, handle) == 12 );
+ C_ASSERT( offsetof(struct set_process_info_request, mask) == 16 );
+ C_ASSERT( offsetof(struct set_process_info_request, priority) == 20 );
+-C_ASSERT( offsetof(struct set_process_info_request, affinity) == 24 );
+-C_ASSERT( offsetof(struct set_process_info_request, token) == 32 );
+-C_ASSERT( sizeof(struct set_process_info_request) == 40 );
++C_ASSERT( offsetof(struct set_process_info_request, group) == 24 );
++C_ASSERT( offsetof(struct set_process_info_request, affinity) == 32 );
++C_ASSERT( offsetof(struct set_process_info_request, token) == 40 );
++C_ASSERT( sizeof(struct set_process_info_request) == 48 );
+ C_ASSERT( offsetof(struct get_thread_info_request, handle) == 12 );
+ C_ASSERT( offsetof(struct get_thread_info_request, access) == 16 );
+ C_ASSERT( sizeof(struct get_thread_info_request) == 24 );
+@@ -768,8 +769,9 @@ C_ASSERT( offsetof(struct get_thread_info_reply, entry_point) == 24 );
+ C_ASSERT( offsetof(struct get_thread_info_reply, affinity) == 32 );
+ C_ASSERT( offsetof(struct get_thread_info_reply, exit_code) == 40 );
+ C_ASSERT( offsetof(struct get_thread_info_reply, priority) == 44 );
+-C_ASSERT( offsetof(struct get_thread_info_reply, last) == 48 );
+-C_ASSERT( offsetof(struct get_thread_info_reply, suspend_count) == 52 );
++C_ASSERT( offsetof(struct get_thread_info_reply, suspend_count) == 48 );
++C_ASSERT( offsetof(struct get_thread_info_reply, last) == 52 );
++C_ASSERT( offsetof(struct get_thread_info_reply, group) == 54 );
+ C_ASSERT( offsetof(struct get_thread_info_reply, flags) == 56 );
+ C_ASSERT( offsetof(struct get_thread_info_reply, desc_len) == 60 );
+ C_ASSERT( sizeof(struct get_thread_info_reply) == 64 );
+@@ -783,10 +785,11 @@ C_ASSERT( sizeof(struct get_thread_times_reply) == 32 );
+ C_ASSERT( offsetof(struct set_thread_info_request, handle) == 12 );
+ C_ASSERT( offsetof(struct set_thread_info_request, mask) == 16 );
+ C_ASSERT( offsetof(struct set_thread_info_request, priority) == 20 );
+-C_ASSERT( offsetof(struct set_thread_info_request, affinity) == 24 );
+-C_ASSERT( offsetof(struct set_thread_info_request, entry_point) == 32 );
+-C_ASSERT( offsetof(struct set_thread_info_request, token) == 40 );
+-C_ASSERT( sizeof(struct set_thread_info_request) == 48 );
++C_ASSERT( offsetof(struct set_thread_info_request, group) == 24 );
++C_ASSERT( offsetof(struct set_thread_info_request, affinity) == 32 );
++C_ASSERT( offsetof(struct set_thread_info_request, entry_point) == 40 );
++C_ASSERT( offsetof(struct set_thread_info_request, token) == 48 );
++C_ASSERT( sizeof(struct set_thread_info_request) == 56 );
+ C_ASSERT( offsetof(struct suspend_thread_request, handle) == 12 );
+ C_ASSERT( sizeof(struct suspend_thread_request) == 16 );
+ C_ASSERT( offsetof(struct suspend_thread_reply, count) == 8 );
+diff --git a/server/request_trace.h b/server/request_trace.h
+index e748d93ed01..923bc6ec7ff 100644
+--- a/server/request_trace.h
++++ b/server/request_trace.h
+@@ -253,6 +253,7 @@ static void dump_set_process_info_request( const struct set_process_info_request
+     fprintf( stderr, " handle=%04x", req->handle );
+     fprintf( stderr, ", mask=%d", req->mask );
+     fprintf( stderr, ", priority=%d", req->priority );
++    fprintf( stderr, ", group=%d", req->group );
+     dump_uint64( ", affinity=", &req->affinity );
+     fprintf( stderr, ", token=%04x", req->token );
+ }
+@@ -272,8 +273,9 @@ static void dump_get_thread_info_reply( const struct get_thread_info_reply *req
+     dump_uint64( ", affinity=", &req->affinity );
+     fprintf( stderr, ", exit_code=%d", req->exit_code );
+     fprintf( stderr, ", priority=%d", req->priority );
+-    fprintf( stderr, ", last=%d", req->last );
+     fprintf( stderr, ", suspend_count=%d", req->suspend_count );
++    fprintf( stderr, ", last=%d", req->last );
++    fprintf( stderr, ", group=%d", req->group );
+     fprintf( stderr, ", flags=%08x", req->flags );
+     fprintf( stderr, ", desc_len=%u", req->desc_len );
+     dump_varargs_unicode_str( ", desc=", cur_size );
+@@ -297,6 +299,7 @@ static void dump_set_thread_info_request( const struct set_thread_info_request *
+     fprintf( stderr, " handle=%04x", req->handle );
+     fprintf( stderr, ", mask=%d", req->mask );
+     fprintf( stderr, ", priority=%d", req->priority );
++    fprintf( stderr, ", group=%d", req->group );
+     dump_uint64( ", affinity=", &req->affinity );
+     dump_uint64( ", entry_point=", &req->entry_point );
+     fprintf( stderr, ", token=%04x", req->token );
+diff --git a/server/system.c b/server/system.c
+index 80f86d4bdf1..cbb1d3e3d42 100644
+--- a/server/system.c
++++ b/server/system.c
+@@ -46,6 +46,11 @@ unsigned int system_map_win_to_host_cpu( unsigned int cpu )
+     return cpu < num_win_cpus ? (short int)win_to_host_map[cpu] : CPU_NOT_MAPPED;
+ }
+ 
++unsigned int system_max_processor_groups( void )
++{
++    return num_processor_groups;
++}
++
+ affinity_t system_processor_group_system_affinity( unsigned group )
+ {
+     return group < num_processor_groups ? processor_group_system_affinity[group] : 0;
+diff --git a/server/thread.c b/server/thread.c
+index 884f174a332..f8c17f1c0d0 100644
+--- a/server/thread.c
++++ b/server/thread.c
+@@ -385,6 +385,7 @@ struct thread *create_thread( int fd, struct process *process, const struct secu
+ 
+     thread->process = (struct process *)grab_object( process );
+     thread->desktop = 0;
++    thread->processor_group = process->processor_group;
+     thread->affinity = process->affinity;
+     if (!current) current = thread;
+ 
+@@ -614,7 +615,7 @@ struct thread *get_thread_from_pid( int pid )
+     return NULL;
+ }
+ 
+-int set_thread_affinity( struct thread *thread, affinity_t affinity )
++int set_thread_affinity( struct thread *thread, int group, affinity_t affinity )
+ {
+     int ret = 0;
+ #ifdef HAVE_SCHED_SETAFFINITY
+@@ -625,13 +626,17 @@ int set_thread_affinity( struct thread *thread, affinity_t affinity )
+         affinity_t mask;
+ 
+         CPU_ZERO( &set );
++        if (group == -1) group = thread->processor_group;
+         for (i = 0, mask = 1; mask; i++, mask <<= 1)
+-            if (affinity & mask) CPU_SET( i, &set );
+-
++            if (affinity & mask) CPU_SET( system_map_win_to_host_cpu( group * 64 + i ), &set );
+         ret = sched_setaffinity( thread->unix_tid, sizeof(set), &set );
+     }
+ #endif
+-    if (!ret) thread->affinity = affinity;
++    if (!ret)
++    {
++        if (group != -1) thread->processor_group = group;
++        thread->affinity = affinity;
++    }
+     return ret;
+ }
+ 
+@@ -643,10 +648,12 @@ affinity_t get_thread_affinity( struct thread *thread )
+     {
+         cpu_set_t set;
+         unsigned int i;
++        int group = thread->processor_group;
+ 
++        /* get affinity relative to thread's processor group */
+         if (!sched_getaffinity( thread->unix_tid, sizeof(set), &set ))
+             for (i = 0; i < 8 * sizeof(mask); i++)
+-                if (CPU_ISSET( i, &set )) mask |= (affinity_t)1 << i;
++                if (CPU_ISSET( system_map_win_to_host_cpu( group * 64 + i ), &set )) mask |= (affinity_t)1 << i;
+     }
+ #endif
+     if (!mask) mask = ~(affinity_t)0;
+@@ -706,12 +713,22 @@ static void set_thread_info( struct thread *thread,
+     {
+         affinity_t affinity = req->affinity;
+ 
+-        affinity &= system_processor_group_system_affinity( thread->process->processor_group );
+-        if ((affinity & thread->process->affinity) != affinity)
+-            set_error( STATUS_INVALID_PARAMETER );
+-        else if (thread->state == TERMINATED)
++        if (req->group == -1) /* just changing affinity */
++        {
++            affinity &= system_processor_group_system_affinity( thread->process->processor_group );
++            if ((affinity & thread->process->affinity) != affinity)
++                set_error( STATUS_INVALID_PARAMETER );
++        }
++        else
++        {
++            if (req->group >= system_max_processor_groups())
++                set_error( STATUS_INVALID_PARAMETER );
++            if (affinity & ~system_processor_group_system_affinity( req->group ))
++                set_error( STATUS_INVALID_PARAMETER );
++        }
++        if (thread->state == TERMINATED)
+             set_error( STATUS_THREAD_IS_TERMINATING );
+-        else if (set_thread_affinity( thread, affinity ))
++        else if (!get_error() && set_thread_affinity( thread, req->group, affinity ))
+             file_set_error();
+     }
+     if (req->mask & SET_THREAD_INFO_TOKEN)
+@@ -1497,7 +1514,7 @@ DECL_HANDLER(init_first_thread)
+     if (!process->parent_id)
+         process->affinity = current->affinity = get_thread_affinity( current );
+     else
+-        set_thread_affinity( current, current->affinity );
++        set_thread_affinity( current, process->group, current->affinity );
+ 
+     set_thread_priority( current, process->priority, current->priority );
+ 
+@@ -1531,7 +1548,7 @@ DECL_HANDLER(init_thread)
+     init_thread_context( current );
+     generate_debug_event( current, DbgCreateThreadStateChange, &req->entry );
+     set_thread_priority( current, current->process->priority, current->priority );
+-    set_thread_affinity( current, current->affinity );
++    set_thread_affinity( current, current->process->group, current->affinity );
+ 
+     reply->suspend = (current->suspend || current->process->suspend || current->context != NULL);
+ }
+@@ -1580,6 +1597,7 @@ DECL_HANDLER(get_thread_info)
+         reply->entry_point    = thread->entry_point;
+         reply->exit_code      = (thread->state == TERMINATED) ? thread->exit_code : STATUS_PENDING;
+         reply->priority       = thread->priority;
++        reply->group          = thread->processor_group;
+         reply->affinity       = thread->affinity & system_processor_group_system_affinity( thread->process->processor_group );
+         reply->last           = thread->process->running_threads == 1;
+         reply->suspend_count  = thread->suspend;
+diff --git a/server/thread.h b/server/thread.h
+index 2b256be322f..3f78e7f06a6 100644
+--- a/server/thread.h
++++ b/server/thread.h
+@@ -80,6 +80,7 @@ struct thread
+     client_ptr_t           suspend_cookie;/* wait cookie of suspending select */
+     client_ptr_t           teb;           /* TEB address (in client address space) */
+     client_ptr_t           entry_point;   /* entry point (in client address space) */
++    int                    processor_group; /* processor group */
+     affinity_t             affinity;      /* affinity mask */
+     int                    priority;      /* priority level */
+     int                    suspend;       /* suspend count */
+@@ -123,7 +124,7 @@ extern int thread_add_inflight_fd( struct thread *thread, int client, int server
+ extern int thread_get_inflight_fd( struct thread *thread, int client );
+ extern struct token *thread_get_impersonation_token( struct thread *thread );
+ extern unsigned int set_thread_priority( struct thread *thread, int priority_class, int priority );
+-extern int set_thread_affinity( struct thread *thread, affinity_t affinity );
++extern int set_thread_affinity( struct thread *thread, int processor_group, affinity_t affinity );
+ extern int suspend_thread( struct thread *thread );
+ extern int resume_thread( struct thread *thread );
+ 
+-- 
+2.48.1
+
+
+From b4c6749e6f65f52a952e692759bffd50c045eac9 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 18:52:44 +0100
+Subject: [PATCH 10/11] server: Distribute processes accross all processor
+ groups.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ server/process.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/server/process.c b/server/process.c
+index e20051340fd..6c04ba99607 100644
+--- a/server/process.c
++++ b/server/process.c
+@@ -732,7 +732,7 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
+         /* Note: for security reasons, starting a new process does not attempt
+          * to use the current impersonation token for the new process */
+         process->token = token_duplicate( token ? token : parent->token, TRUE, 0, NULL, NULL, 0, NULL, 0 );
+-        process->processor_group = 0;
++        process->processor_group = random() % system_max_processor_groups();
+         process->affinity = parent->affinity;
+     }
+     if (!process->handles || !process->token) goto error;
+-- 
+2.48.1
+
+
+From 7d5cd8898cdc706520aa1f3ac285f8f938b0fc18 Mon Sep 17 00:00:00 2001
+From: Eric Pouech <epouech@codeweavers.com>
+Date: Wed, 12 Feb 2025 15:31:16 +0100
+Subject: [PATCH 11/11] server: Don't restrain a process to a process group.
+
+This is Win11 default mode where processes are now by default
+scheduled over all processor groups.
+
+Signed-off-by: Eric Pouech <epouech@codeweavers.com>
+---
+ dlls/kernel32/tests/thread.c |  2 +-
+ dlls/ntdll/tests/info.c      |  1 +
+ server/process.c             | 20 ++++++++++++++++++++
+ server/process.h             |  2 +-
+ server/request.h             |  3 ++-
+ server/system.c              |  5 +++++
+ server/thread.c              | 24 ++++++++++++++++--------
+ 7 files changed, 46 insertions(+), 11 deletions(-)
+
+diff --git a/dlls/kernel32/tests/thread.c b/dlls/kernel32/tests/thread.c
+index 67ab46f7298..12507bd117f 100644
+--- a/dlls/kernel32/tests/thread.c
++++ b/dlls/kernel32/tests/thread.c
+@@ -1141,7 +1141,7 @@ static void test_thread_processor_group(void)
+     ok(process_mask == ~(DWORD_PTR)0 && system_mask == ~(DWORD_PTR)0, "Unexpected values %Ix %Ix\n", process_mask, system_mask);
+ 
+     ret = SetProcessAffinityMask(GetCurrentProcess(), 0x1);
+-    todo_wine ok(!ret, "This should have failed on multiple processor groups\n");
++    ok(!ret, "This should have failed on multiple processor groups\n");
+ 
+     TerminateThread(thd1, 0);
+     CloseHandle(thd1);
+diff --git a/dlls/ntdll/tests/info.c b/dlls/ntdll/tests/info.c
+index bf13d5e50a3..ae50d85f16f 100644
+--- a/dlls/ntdll/tests/info.c
++++ b/dlls/ntdll/tests/info.c
+@@ -3389,6 +3389,7 @@ static void test_NtGetCurrentProcessorNumber(void)
+         ok(status == STATUS_SUCCESS, "%ld: got 0x%lx (expected STATUS_SUCCESS)\n", i, status);
+ 
+         current_cpu = pNtGetCurrentProcessorNumber();
++        todo_wine_if(current_cpu != i) /* FIXME requires more tests */
+         ok((current_cpu == i), "%ld (new_mask 0x%Ix): running on processor %ld (AffinityMask: 0x%Ix)\n",
+                                 i, new_mask, current_cpu, tbi.AffinityMask);
+     }
+diff --git a/server/process.c b/server/process.c
+index 6c04ba99607..3216c49ec43 100644
+--- a/server/process.c
++++ b/server/process.c
+@@ -1601,6 +1601,21 @@ DECL_HANDLER(get_process_vm_counters)
+     release_object( process );
+ }
+ 
++static int process_is_in_single_processor_groups( struct process *process )
++{
++    struct thread *thread;
++    int group = -1;
++
++    /* FIXME: requires more tests */
++    LIST_FOR_EACH_ENTRY( thread, &process->thread_list, struct thread, proc_entry )
++    {
++        if (thread->processor_group == -1) continue;
++        if (group == -1) group = thread->processor_group;
++        else if (group != thread->processor_group) return 0;
++    }
++    return 1;
++}
++
+ static void set_process_affinity( struct process *process, affinity_t affinity )
+ {
+     struct thread *thread;
+@@ -1610,6 +1625,11 @@ static void set_process_affinity( struct process *process, affinity_t affinity )
+         set_error( STATUS_PROCESS_IS_TERMINATING );
+         return;
+     }
++    if (!process_is_in_single_processor_groups( process ))
++    {
++        set_error( STATUS_INVALID_PARAMETER );
++        return;
++    }
+     if (affinity & ~system_processor_group_system_affinity( process->processor_group) )
+     {
+         set_error( STATUS_INVALID_PARAMETER );
+diff --git a/server/process.h b/server/process.h
+index c2cd6d0bd30..106cf2e9c8d 100644
+--- a/server/process.h
++++ b/server/process.h
+@@ -56,7 +56,7 @@ struct process
+     timeout_t            end_time;        /* absolute time at process end */
+     int                  group;           /* process group */
+     affinity_t           affinity;        /* process affinity mask */
+-    int                  processor_group; /* processor group */
++    int                  processor_group; /* primary processor group */
+     int                  priority;        /* priority class */
+     int                  suspend;         /* global process suspend count */
+     unsigned int         is_system:1;     /* is it a system process? */
+diff --git a/server/request.h b/server/request.h
+index d09fdd9e201..0a072ee707e 100644
+--- a/server/request.h
++++ b/server/request.h
+@@ -118,7 +118,8 @@ static inline void set_reply_data_ptr( void *data, data_size_t size )
+ #define CPU_NOT_MAPPED ((unsigned)-1)
+ extern unsigned int system_map_host_to_win_cpu( unsigned int cpu );
+ extern unsigned int system_map_win_to_host_cpu( unsigned int cpu );
+-extern affinity_t system_processor_group_system_affinity( unsigned group );
++extern unsigned int system_max_win_cpus( void );
++extern affinity_t   system_processor_group_system_affinity( unsigned group );
+ extern unsigned int system_max_processor_groups( void );
+ 
+ #endif  /* __WINE_SERVER_REQUEST_H */
+diff --git a/server/system.c b/server/system.c
+index cbb1d3e3d42..0bc2dd87dc2 100644
+--- a/server/system.c
++++ b/server/system.c
+@@ -46,6 +46,11 @@ unsigned int system_map_win_to_host_cpu( unsigned int cpu )
+     return cpu < num_win_cpus ? (short int)win_to_host_map[cpu] : CPU_NOT_MAPPED;
+ }
+ 
++unsigned int system_max_win_cpus( void )
++{
++    return num_win_cpus;
++}
++
+ unsigned int system_max_processor_groups( void )
+ {
+     return num_processor_groups;
+diff --git a/server/thread.c b/server/thread.c
+index f8c17f1c0d0..89173ef25d5 100644
+--- a/server/thread.c
++++ b/server/thread.c
+@@ -385,7 +385,7 @@ struct thread *create_thread( int fd, struct process *process, const struct secu
+ 
+     thread->process = (struct process *)grab_object( process );
+     thread->desktop = 0;
+-    thread->processor_group = process->processor_group;
++    thread->processor_group = -1;
+     thread->affinity = process->affinity;
+     if (!current) current = thread;
+ 
+@@ -626,9 +626,16 @@ int set_thread_affinity( struct thread *thread, int group, affinity_t affinity )
+         affinity_t mask;
+ 
+         CPU_ZERO( &set );
+-        if (group == -1) group = thread->processor_group;
+-        for (i = 0, mask = 1; mask; i++, mask <<= 1)
+-            if (affinity & mask) CPU_SET( system_map_win_to_host_cpu( group * 64 + i ), &set );
++        if (group == -1 && thread->processor_group == -1)
++            for (i = 0; i < system_max_win_cpus(); i++)
++                CPU_SET( system_map_win_to_host_cpu( i ), &set );
++        else
++        {
++            if (group == -1) group = thread->processor_group;
++            for (i = 0, mask = 1; mask; i++, mask <<= 1)
++                if (affinity & mask) CPU_SET( group * 64 + i, &set );
++        }
++
+         ret = sched_setaffinity( thread->unix_tid, sizeof(set), &set );
+     }
+ #endif
+@@ -650,7 +657,8 @@ affinity_t get_thread_affinity( struct thread *thread )
+         unsigned int i;
+         int group = thread->processor_group;
+ 
+-        /* get affinity relative to thread's processor group */
++        /* get affinity relative to thread's processor group (if set) or process' primary process group otherwise */
++        if (group == -1) group = thread->process->processor_group;
+         if (!sched_getaffinity( thread->unix_tid, sizeof(set), &set ))
+             for (i = 0; i < 8 * sizeof(mask); i++)
+                 if (CPU_ISSET( system_map_win_to_host_cpu( group * 64 + i ), &set )) mask |= (affinity_t)1 << i;
+@@ -1514,7 +1522,7 @@ DECL_HANDLER(init_first_thread)
+     if (!process->parent_id)
+         process->affinity = current->affinity = get_thread_affinity( current );
+     else
+-        set_thread_affinity( current, process->group, current->affinity );
++        set_thread_affinity( current, -1, current->affinity );
+ 
+     set_thread_priority( current, process->priority, current->priority );
+ 
+@@ -1548,7 +1556,7 @@ DECL_HANDLER(init_thread)
+     init_thread_context( current );
+     generate_debug_event( current, DbgCreateThreadStateChange, &req->entry );
+     set_thread_priority( current, current->process->priority, current->priority );
+-    set_thread_affinity( current, current->process->group, current->affinity );
++    set_thread_affinity( current, -1, current->affinity );
+ 
+     reply->suspend = (current->suspend || current->process->suspend || current->context != NULL);
+ }
+@@ -1597,7 +1605,7 @@ DECL_HANDLER(get_thread_info)
+         reply->entry_point    = thread->entry_point;
+         reply->exit_code      = (thread->state == TERMINATED) ? thread->exit_code : STATUS_PENDING;
+         reply->priority       = thread->priority;
+-        reply->group          = thread->processor_group;
++        reply->group          = thread->processor_group == -1 ? thread->process->processor_group : thread->processor_group;
+         reply->affinity       = thread->affinity & system_processor_group_system_affinity( thread->process->processor_group );
+         reply->last           = thread->process->running_threads == 1;
+         reply->suspend_count  = thread->suspend;
+-- 
+2.48.1
+

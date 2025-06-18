@@ -1,8 +1,8 @@
 diff --git a/dlls/kernelbase/file.c b/dlls/kernelbase/file.c
-index f0dedfe3b14f5c25a6a14f735bd22aaefdf48b15..f51c5274445bbf3e009c22f223f0475ddd4833e7 100644
+index 7d8b6844456e96ca4964431c8c939a4765358dbd..995be40270e7b89aa07577187b55033cbae50955 100644
 --- a/dlls/kernelbase/file.c
 +++ b/dlls/kernelbase/file.c
-@@ -3709,6 +3709,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetFileInformationByHandle( HANDLE file, FILE_INFO
+@@ -3658,6 +3658,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetFileInformationByHandle( HANDLE file, FILE_INFO
          status = NtSetInformationFile( file, &io, info, size, FileIoPriorityHintInformation );
          break;
      case FileRenameInfo:
@@ -10,7 +10,7 @@ index f0dedfe3b14f5c25a6a14f735bd22aaefdf48b15..f51c5274445bbf3e009c22f223f0475d
          {
              FILE_RENAME_INFORMATION *rename_info;
              UNICODE_STRING nt_name;
-@@ -3724,7 +3725,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetFileInformationByHandle( HANDLE file, FILE_INFO
+@@ -3673,7 +3674,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetFileInformationByHandle( HANDLE file, FILE_INFO
                  memcpy( rename_info, info, sizeof(*rename_info) );
                  memcpy( rename_info->FileName, nt_name.Buffer, nt_name.Length + sizeof(WCHAR) );
                  rename_info->FileNameLength = nt_name.Length;

@@ -240,7 +240,6 @@ RUN mkdir "$WINE_SOURCE/build32" && \
 # 
 RUN mkdir -p /opt/wine/wine64/lib && \
 	cp /opt/wine/wine32/bin/wine                  /opt/wine/wine64/bin/wine && \
-	cp /opt/wine/wine32/bin/wine-preloader        /opt/wine/wine64/bin/wine-preloader && \
 	cp -R /opt/wine/wine32/lib/wine/i386-unix     /opt/wine/wine64/lib/wine/i386-unix && \
 	cp -R /opt/wine/wine32/lib/wine/i386-windows  /opt/wine/wine64/lib/wine/i386-windows
 
@@ -273,6 +272,7 @@ COPY --from=builder --parents /tmp/wine/build32/dlls/*/i386-windows/*.pdb /wine-
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS runtime
 COPY --from=builder /opt/wine/wine64 /opt/wine
+RUN ln -s /opt/wine/bin/wine /opt/wine/bin/wine64
 ENV PATH=${PATH}:/opt/wine/bin
 
 # Copy the memory shim into the new image

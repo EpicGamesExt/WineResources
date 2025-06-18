@@ -24,7 +24,7 @@ This directory contains a [Dockerfile](./context/Dockerfile) for building a cont
 
 ## Building the Wine base image
 
-Follow the instructions in the [README for the repository's top-level build directory](../../../build/README.md) to build a base image containing Epic's patched version of Wine. Once the build completes, the base image will be available with the tag `epicgames/wine-patched:10.1`.
+Follow the instructions in the [README for the repository's top-level build directory](../../../build/README.md) to build a base image containing Epic's patched version of Wine. Once the build completes, the base image will be available with the tag `epicgames/wine-patched:10.10`.
 
 
 ## Building the container image

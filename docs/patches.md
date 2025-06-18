@@ -14,17 +14,6 @@ This page documents the custom patches that are applied when [building Wine for 
     - [Minidump backport patches](#minidump-backport-patches)
 
 
-## ntdll.dll: Update NtQueryDirectoryFile to align with current Windows behaviour
-
-**Upstream merge request:** <https://gitlab.winehq.org/wine/wine/-/merge_requests/6904>
-
-**Status:** Under review
-
-**Patch file:** [ntquerydirectoryfile-reset-mask.patch](../patches/ntquerydirectoryfile-reset-mask.patch)
-
-Wine's implementation of the [NtQueryDirectoryFile](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntquerydirectoryfile) function behaves in a manner consistent with the description in Microsoft's documentation. However, Microsoft changed the behaviour of this function in Windows 8 without updating the corresponding documentation, and some applications such as MSVC have been designed to rely on the new behaviour. This patch implements the new behaviour under Wine, which fixes errors that can occur when compiling Unreal Engine's C++ code with the Visual Studio compiler toolchain.
-
-
 ## Memory patches to report cgroup usage and limit values inside containers and add support for overcommit prevention
 
 **Upstream merge request:** None
@@ -81,3 +70,14 @@ By default, Wine reports an exit code of zero for Windows processes that termina
 ## Minidump backport patches
 
 This file backported the minidump code changes from Wine 9.13 to the stable Wine 9.0 release, and was kindly provided by Eric Pouech from [CodeWeavers](https://www.codeweavers.com/).
+
+
+## ntdll.dll: Update NtQueryDirectoryFile to align with current Windows behaviour
+
+**Upstream merge request:** <https://gitlab.winehq.org/wine/wine/-/merge_requests/6904>
+
+**Status:** Merged upstream in commit [a44f628c](https://gitlab.winehq.org/wine/wine/-/commit/a44f628c0a604bc25c032a962e23916656baa724), present in Wine 10.3 and newer
+
+**Patch file:** [ntquerydirectoryfile-reset-mask.patch](../patches/ntquerydirectoryfile-reset-mask.patch)
+
+Wine's implementation of the [NtQueryDirectoryFile](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntquerydirectoryfile) function behaves in a manner consistent with the description in Microsoft's documentation. However, Microsoft changed the behaviour of this function in Windows 8 without updating the corresponding documentation, and some applications such as MSVC have been designed to rely on the new behaviour. This patch implements the new behaviour under Wine, which fixes errors that can occur when compiling Unreal Engine's C++ code with the Visual Studio compiler toolchain.

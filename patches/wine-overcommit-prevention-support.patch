@@ -1,10 +1,10 @@
 diff --git a/dlls/ntdll/Makefile.in b/dlls/ntdll/Makefile.in
-index 37bd6c86e31fb389f3bc53bc56c3bc8aad250d45..67c3afe8ca5974702a9fbfb14419eaf0f9be7a14 100644
+index f7558bb5d86f03756f77f903e3a64bfdb6b73252..00376e62ced761ad520518a444ffe759f4d3e35b 100644
 --- a/dlls/ntdll/Makefile.in
 +++ b/dlls/ntdll/Makefile.in
-@@ -4,7 +4,7 @@ UNIXLIB   = ntdll.so
- IMPORTLIB = ntdll
- IMPORTS   = $(MUSL_PE_LIBS) winecrt0
+@@ -5,7 +5,7 @@ IMPORTLIB = ntdll
+ IMPORTS   = $(TOMCRYPT_PE_LIBS) $(MUSL_PE_LIBS)
+ EXTRAINCL = $(TOMCRYPT_PE_CFLAGS)
  UNIX_CFLAGS  = $(UNWIND_CFLAGS)
 -UNIX_LIBS    = $(IOKIT_LIBS) $(COREFOUNDATION_LIBS) $(CORESERVICES_LIBS) $(RT_LIBS) $(PTHREAD_LIBS) $(UNWIND_LIBS) $(I386_LIBS) $(PROCSTAT_LIBS)
 +UNIX_LIBS    = $(IOKIT_LIBS) $(COREFOUNDATION_LIBS) $(CORESERVICES_LIBS) $(RT_LIBS) $(PTHREAD_LIBS) $(UNWIND_LIBS) $(I386_LIBS) $(PROCSTAT_LIBS) -lmemory-patches
@@ -12,10 +12,10 @@ index 37bd6c86e31fb389f3bc53bc56c3bc8aad250d45..67c3afe8ca5974702a9fbfb14419eaf0
  EXTRADLLFLAGS = -nodefaultlibs
  i386_EXTRADLLFLAGS = -Wl,--image-base,0x7bc00000
 diff --git a/dlls/ntdll/unix/server.c b/dlls/ntdll/unix/server.c
-index b40e7c2a1d794c83a425e5d16d4e4587681b23c3..b8f78bd23e5167a0440792ff7841c94e381b3b01 100644
+index 3969c2bb8989369f5e7de6dc93ced14b1e879c30..8201318113c14ee4b4f965fcaf9ceb1a0a936c63 100644
 --- a/dlls/ntdll/unix/server.c
 +++ b/dlls/ntdll/unix/server.c
-@@ -1155,6 +1155,32 @@ done:
+@@ -1184,6 +1184,32 @@ done:
      return ret;
  }
  
@@ -49,7 +49,7 @@ index b40e7c2a1d794c83a425e5d16d4e4587681b23c3..b8f78bd23e5167a0440792ff7841c94e
  /***********************************************************************
   *           wine_server_fd_to_handle
 diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
-index efc5914577b60cc76855489baf01a19be50eb0f8..4be9f5de640b880fe03cb66d0bf41b314fa89129 100644
+index d1e96be3a19da36b7ce841e508bf997fc0a7813e..a3c1d4db06c1e069649b1d6b9b163d90b9d8dfe7 100644
 --- a/dlls/ntdll/unix/system.c
 +++ b/dlls/ntdll/unix/system.c
 @@ -36,6 +36,9 @@
@@ -62,7 +62,7 @@ index efc5914577b60cc76855489baf01a19be50eb0f8..4be9f5de640b880fe03cb66d0bf41b31
  #ifdef HAVE_SYS_PARAM_H
  # include <sys/param.h>
  #endif
-@@ -2259,33 +2262,11 @@ static void get_performance_info( SYSTEM_PERFORMANCE_INFORMATION *info )
+@@ -2293,33 +2296,11 @@ static void get_performance_info( SYSTEM_PERFORMANCE_INFORMATION *info )
  
  #ifdef linux
      {
@@ -102,10 +102,10 @@ index efc5914577b60cc76855489baf01a19be50eb0f8..4be9f5de640b880fe03cb66d0bf41b31
  #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || \
      defined(__OpenBSD__) || defined(__DragonFly__) || defined(__APPLE__)
 diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
-index f840045f841992e885d7c4db292569e238fb7e3b..17a4beb155120f04d17c8a493e7e8014ca787dbb 100644
+index 721bdeda08a60bf56f0e3864e95400eadbe24d5b..93530c6920b6b4ba00014c64198db883e0db062e 100644
 --- a/dlls/ntdll/unix/unix_private.h
 +++ b/dlls/ntdll/unix/unix_private.h
-@@ -216,6 +216,7 @@ extern unsigned int server_queue_process_apc( HANDLE process, const union apc_ca
+@@ -233,6 +233,7 @@ extern unsigned int server_queue_process_apc( HANDLE process, const union apc_ca
                                                union apc_result *result );
  extern int server_get_unix_fd( HANDLE handle, unsigned int wanted_access, int *unix_fd,
                                 int *needs_close, enum server_fd_type *type, unsigned int *options );
@@ -114,10 +114,10 @@ index f840045f841992e885d7c4db292569e238fb7e3b..17a4beb155120f04d17c8a493e7e8014
  extern void process_exit_wrapper( int status ) DECLSPEC_NORETURN;
  extern size_t server_init_process(void);
 diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
-index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8a96c6029 100644
+index f82929ef57f757af2f8876071f7e845e88931982..3722ed3e3e415491a9fef400f7a40d2eff608dbd 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -75,6 +75,8 @@
+@@ -92,6 +92,8 @@
  #include "unix_private.h"
  #include "wine/debug.h"
  
@@ -126,10 +126,10 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
  WINE_DEFAULT_DEBUG_CHANNEL(virtual);
  WINE_DECLARE_DEBUG_CHANNEL(module);
  WINE_DECLARE_DEBUG_CHANNEL(virtual_ranges);
-@@ -234,12 +236,26 @@ static inline BOOL is_vprot_exec_write( BYTE vprot )
- /* mmap() anonymous memory at a fixed address */
- void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
- {
+@@ -267,6 +269,13 @@ void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
+     assert( !((UINT_PTR)start & host_page_mask) );
+     assert( !(size & host_page_mask) );
+ 
 +    BOOL write_requested = has_write_flags(prot);
 +    if (overcommit_prevention_enabled() && write_requested && memory_available_for_commit(size) == FALSE)
 +    {
@@ -140,9 +140,10 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      return mmap( start, size, prot, MAP_PRIVATE | MAP_ANON | MAP_FIXED | flags, -1, 0 );
  }
  
- /* allocate anonymous mmap() memory at any address */
- void *anon_mmap_alloc( size_t size, int prot )
+@@ -275,6 +284,13 @@ void *anon_mmap_alloc( size_t size, int prot )
  {
+     assert( !(size & host_page_mask) );
+ 
 +    BOOL write_requested = has_write_flags(prot);
 +    if (overcommit_prevention_enabled() && write_requested && memory_available_for_commit(size) == FALSE)
 +    {
@@ -153,7 +154,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      return mmap( NULL, size, prot, MAP_PRIVATE | MAP_ANON, -1, 0 );
  }
  
-@@ -395,6 +411,14 @@ static size_t unmap_area_above_user_limit( void *addr, size_t size )
+@@ -589,6 +605,14 @@ static size_t unmap_area_above_user_limit( void *addr, size_t size )
  static void *anon_mmap_tryfixed( void *start, size_t size, int prot, int flags )
  {
      void *ptr;
@@ -168,7 +169,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
  
  #ifdef MAP_FIXED_NOREPLACE
      ptr = mmap( start, size, prot, MAP_FIXED_NOREPLACE | MAP_PRIVATE | MAP_ANON | flags, -1, 0 );
-@@ -1752,14 +1776,44 @@ static void mprotect_range( void *base, size_t size, BYTE set, BYTE clear )
+@@ -1981,14 +2005,43 @@ static int mprotect_range( void *base, size_t size, BYTE set, BYTE clear )
   */
  static BOOL set_vprot( struct file_view *view, void *base, size_t size, BYTE vprot )
  {
@@ -176,7 +177,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
 +    int ret = -1;
 +    void *remapped = NULL;
 +
-     if (view->protect & VPROT_WRITEWATCH)
+     if (!use_kernel_writewatch && view->protect & VPROT_WRITEWATCH)
      {
 +        /* 
 +         * TODO: Figure out how to handle this case before attempting
@@ -185,35 +186,34 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
 +
          /* each page may need different protections depending on write watch flag */
          set_page_vprot_bits( base, size, vprot & ~VPROT_WRITEWATCH, ~vprot & ~VPROT_WRITEWATCH );
-         mprotect_range( base, size, 0, 0 );
-         return TRUE;
      }
+     else
+     {
+         if (enable_write_exceptions && is_vprot_exec_write( vprot )) vprot |= VPROT_WRITEWATCH;
 +
-     if (enable_write_exceptions && is_vprot_exec_write( vprot )) vprot |= VPROT_WRITEWATCH;
-+
-+    /* Check if write copy was added to the mapping */
-+    if ((vprot & VPROT_WRITECOPY) && !(view->protect & VPROT_WRITECOPY))
-+    {
-+        /* Get the associated file descriptor for the mapping */
-+        ret = server_get_fd_for_address(view->base, &fd);
-+
-+        if (fd != -1 && ret == STATUS_SUCCESS)
++        /* Check if write copy was added to the mapping */
++        if ((vprot & VPROT_WRITECOPY) && !(view->protect & VPROT_WRITECOPY))
 +        {
-+            /* Remap as copy-on-write using mmap() */
-+            remapped = mmap(base, size, get_unix_prot(vprot), MAP_PRIVATE | MAP_FIXED, fd, 0);
-+            close(fd);
++            /* Get the associated file descriptor for the mapping */
++            ret = server_get_fd_for_address(view->base, &fd);
 +
-+            if(remapped == base) return TRUE;
-+            ERR("mmap() failed. Error: %s\n", strerror(errno));
++            if (fd != -1 && ret == STATUS_SUCCESS)
++            {
++                /* Remap as copy-on-write using mmap() */
++                remapped = mmap(base, size, get_unix_prot(vprot), MAP_PRIVATE | MAP_FIXED, fd, 0);
++                close(fd);
++
++                if(remapped == base) return TRUE;
++                ERR("mmap() failed. Error: %s\n", strerror(errno));
++            }
++
++            ERR("Could not remap file as copy-on-write. Falling back to mprotect() instead\n");
 +        }
 +
-+        ERR("Could not remap file as copy-on-write. Falling back to mprotect() instead\n");
-+    }
-+
-     if (mprotect_exec( base, size, get_unix_prot(vprot) )) return FALSE;
-     set_page_vprot( base, size, vprot );
-     return TRUE;
-@@ -3166,6 +3220,7 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+         set_page_vprot( base, size, vprot );
+     }
+     return !mprotect_range( base, size, 0, 0 );
+@@ -3476,6 +3529,7 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
      HANDLE shared_file;
      LARGE_INTEGER offset;
      sigset_t sigset;
@@ -221,7 +221,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
  
      switch(protect)
      {
-@@ -3241,6 +3296,16 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3551,6 +3605,16 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
  
      if ((res = server_get_unix_fd( handle, 0, &unix_handle, &needs_close, NULL, NULL ))) return res;
  
@@ -238,7 +238,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      server_enter_uninterrupted_section( &virtual_mutex, &sigset );
  
      res = map_view( &view, base, size, alloc_type, vprot, limit_low, limit_high, 0 );
-@@ -3268,6 +3333,11 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3581,6 +3645,11 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
          *addr_ptr = view->base;
          *size_ptr = size;
          VIRTUAL_DEBUG_DUMP_VIEW( view );
@@ -250,7 +250,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      }
      else delete_view( view );
  
-@@ -4583,6 +4653,13 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+@@ -4966,6 +5035,13 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
      if (type & MEM_RESERVE_PLACEHOLDER && (protect != PAGE_NOACCESS)) return STATUS_INVALID_PARAMETER;
      if (!arm64ec_view && (attributes & MEM_EXTENDED_PARAMETER_EC_CODE)) return STATUS_INVALID_PARAMETER;
  
@@ -264,7 +264,7 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      /* Reserve the memory */
  
      server_enter_uninterrupted_section( &virtual_mutex, &sigset );
-@@ -4641,6 +4718,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+@@ -5024,6 +5100,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
      {
          *ret = base;
          *size_ptr = size;
@@ -276,9 +276,9 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
      }
      else if (status == STATUS_NO_MEMORY)
          ERR( "out of memory for allocation, base %p size %08lx\n", base, size );
-@@ -4995,8 +5077,27 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
+@@ -5378,8 +5459,27 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
          /* Make sure all the pages are committed */
-         if (get_committed_size( view, base, ~(size_t)0, &vprot, VPROT_COMMITTED ) >= size && (vprot & VPROT_COMMITTED))
+         if (get_committed_size( view, base, size, &vprot, VPROT_COMMITTED ) >= size && (vprot & VPROT_COMMITTED))
          {
 +            BOOL write_or_copy_added = FALSE;
              old = get_win32_prot( vprot, view->protect );
@@ -305,19 +305,19 @@ index 0c0a12c394df1c98ed120d45b572cb2ac5e3353c..f4f3fb07b1e3713b00ca0172bd5688c8
          else status = STATUS_NOT_COMMITTED;
      }
 diff --git a/server/Makefile.in b/server/Makefile.in
-index 7e571ac2ba64dafdbd94b0d939e27484a364fcf4..54d53adb43ee919ca9e85e16567d65f0671a9d1d 100644
+index 6e4e68d6ebfb6555b92afe6e9fa6e7422e6d0415..b2f0c27abcfc36abf15805acf900ce7a45a88978 100644
 --- a/server/Makefile.in
 +++ b/server/Makefile.in
-@@ -47,6 +47,6 @@ SOURCES = \
- 	wineserver.man.in \
+@@ -48,6 +48,6 @@ SOURCES = \
  	winstation.c
  
--UNIX_LIBS = $(LDEXECFLAGS) $(RT_LIBS) $(INOTIFY_LIBS) $(PROCSTAT_LIBS)
-+UNIX_LIBS = $(LDEXECFLAGS) $(RT_LIBS) $(INOTIFY_LIBS) $(PROCSTAT_LIBS) -lmemory-patches
+ UNIX_CFLAGS = $(INOTIFY_CFLAGS)
+-UNIX_LIBS   = $(LDEXECFLAGS) $(RT_LIBS) $(INOTIFY_LIBS) $(PROCSTAT_LIBS)
++UNIX_LIBS   = $(LDEXECFLAGS) $(RT_LIBS) $(INOTIFY_LIBS) $(PROCSTAT_LIBS) -lmemory-patches
  
  unicode_EXTRADEFS = -DBINDIR="\"${bindir}\"" -DDATADIR="\"${datadir}\""
 diff --git a/server/mapping.c b/server/mapping.c
-index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2debe3990d7f 100644
+index 7edadcbbedaaff176ebb8a02411ecebaecef3df3..97db23342701cccb9f4d520901bfeda0b00852e9 100644
 --- a/server/mapping.c
 +++ b/server/mapping.c
 @@ -43,6 +43,8 @@
@@ -329,7 +329,7 @@ index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2deb
  /* list of memory ranges, used to store committed info */
  struct ranges
  {
-@@ -375,7 +377,17 @@ static int create_temp_file( file_pos_t size )
+@@ -377,7 +379,17 @@ static int create_temp_file( file_pos_t size )
      fd = make_temp_file( tmpfn );
      if (fd != -1)
      {
@@ -348,7 +348,7 @@ index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2deb
          {
              close( fd );
              fd = -1;
-@@ -644,6 +656,10 @@ static int build_shared_mapping( struct mapping *mapping, int fd,
+@@ -646,6 +658,10 @@ static int build_shared_mapping( struct mapping *mapping, size_t align_mask, int
      if ((shared_fd = create_temp_file( total_size )) == -1) return 0;
      if (!(file = create_file_for_fd( shared_fd, FILE_GENERIC_READ|FILE_GENERIC_WRITE, 0 ))) return 0;
  
@@ -359,7 +359,7 @@ index 4bdd7c5080ac0fc88b17582d17e17a20d8932382..ff5c65bce86e72e73034d50ab30e2deb
      if (!(buffer = malloc( max_size ))) goto error;
  
      /* copy the shared sections data into the temp file */
-@@ -1734,3 +1750,22 @@ DECL_HANDLER(get_mapping_filename)
+@@ -1743,3 +1759,22 @@ DECL_HANDLER(get_mapping_filename)
  
      release_object( process );
  }

@@ -42,6 +42,19 @@ T GetRealFunction(const char* name)
 	return ptr;
 }
 
+bool ShimEnabled() {
+	static int shim_enabled = -1;
+
+	if (shim_enabled == -1)
+	{
+		const char *str = getenv( "ENABLE_MEMORY_SHIM" );
+
+		shim_enabled = str && atoi(str) == 1;
+	}
+
+	return shim_enabled;
+}
+
 uint64_t GetMemlockLimit()
 {
 	struct rlimit limitValues = {};
@@ -166,6 +179,8 @@ extern "C" void* malloc(size_t size)
 	static MallocFnPtr RealMalloc = GetRealFunction<MallocFnPtr>("malloc");
 	void *ptr = RealMalloc(size);
 
+	if (!ShimEnabled()) return ptr;
+
 	if (ptr)
 	{
 		if (!TouchMemoryMadvise(ptr, size, PROT_READ | PROT_WRITE))
@@ -188,6 +203,8 @@ extern "C" void* mmap(void *addr, size_t len, int prot, int flags, int fd, off_t
 {
 	static MmapFnPtr RealMmap = GetRealFunction<MmapFnPtr>("mmap");
 	void *ptr = RealMmap(addr, len, prot, flags, fd, offset);
+
+	if (!ShimEnabled()) return ptr;
 
 	if
 	(
@@ -216,6 +233,8 @@ extern "C" int mprotect(void* addr, size_t len, int prot)
 {
 	static MprotectFnPtr RealMprotect = GetRealFunction<MprotectFnPtr>("mprotect");
 	int result = RealMprotect(addr, len, prot);
+
+	if (!ShimEnabled()) return result;
 
 	if (result == 0 && prot != PROT_NONE)
 	{

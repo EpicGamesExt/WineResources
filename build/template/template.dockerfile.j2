@@ -321,6 +321,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,t
 		winbind \
 		xvfb
 
+# Configure the container's locale settings
+# (Note: without this, the locale will default to ANSI_X3.4-1968 / US-ASCII, which interferes with Wine's Unicode character handling)
+ENV LANG=en_US.UTF-8
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked \
+	apt-get update && apt-get install -y --no-install-recommends locales && \
+	sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+	locale-gen && \
+	update-locale LANG="${LANG}"
+
 
 {% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
 

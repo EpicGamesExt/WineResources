@@ -201,7 +201,7 @@ COPY ./patches /tmp/patches/
 RUN cd "$WINE_SOURCE" && \
 	git config --global user.email "root@container.builder" && \
 	git config --global user.name "Container Build Stage" && \
-	git apply --whitespace=nowarn /tmp/patches/*.patch
+	git apply --whitespace=nowarn $(find /tmp/patches/ -iname *.patch)
 
 # Run the codegen steps that need to be performed prior to running `configure`
 # (Commands from here: <https://github.com/Kron4ek/Wine-Builds/blob/0697823107e88f791b4da2bc496d93d5ad1afd03/build_wine.sh#L283-L285>)

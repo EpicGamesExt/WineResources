@@ -239,9 +239,16 @@ RUN mkdir "$WINE_SOURCE/build32" && \
 # - We include all files from both the 64-bit and 32-bit versions of the `lib` directory (under Wine 7.x, the 64-bit version of the directory is called `lib64`)
 # 
 RUN mkdir -p /opt/wine/wine64/lib && \
+	mv /opt/wine/wine64/bin/wine                  /opt/wine/wine64/bin/wine64 && \
 	cp /opt/wine/wine32/bin/wine                  /opt/wine/wine64/bin/wine && \
 	cp -R /opt/wine/wine32/lib/wine/i386-unix     /opt/wine/wine64/lib/wine/i386-unix && \
 	cp -R /opt/wine/wine32/lib/wine/i386-windows  /opt/wine/wine64/lib/wine/i386-windows
+
+{% else %}
+
+# Create a symlink for 'wine64' as some programs expect to find this
+RUN cd /opt/wine/wine64/bin && \
+	ln -s wine wine64
 
 {% endif %}
 
@@ -272,7 +279,6 @@ COPY --from=builder --parents /tmp/wine/build32/dlls/*/i386-windows/*.pdb /wine-
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS runtime
 COPY --from=builder /opt/wine/wine64 /opt/wine
-RUN ln -s /opt/wine/bin/wine /opt/wine/bin/wine64
 ENV PATH=${PATH}:/opt/wine/bin
 
 # Copy the memory shim into the new image

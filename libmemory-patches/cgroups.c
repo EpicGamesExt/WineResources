@@ -1,5 +1,6 @@
 
 #include "libmemory-patches.h"
+#include "logger.h"
 
 #include <libcgroup.h>
 #include <stdlib.h>
@@ -53,7 +54,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
     ret = cgroup_init();
     if (ret)
     {
-        printf("cgroup_init() failed: %s\n", cgroup_strerror(ret));
+        log_message(WARNING, "cgroup_init() failed: %s\n", cgroup_strerror(ret));
         return FALSE;
     }
 
@@ -61,7 +62,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
 
     if (ret != 0)
     {
-        printf("cgroup_get_subsys_mount_point() failed: %s\n", cgroup_strerror(ret));
+        log_message(WARNING, "cgroup_get_subsys_mount_point() failed: %s\n", cgroup_strerror(ret));
         return FALSE;
     }
 
@@ -69,7 +70,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
 
     if (ret != 0)
     {
-        printf("cgroup_walk_tree_begin() failed: %s\n", cgroup_strerror(ret));
+        log_message(WARNING, "cgroup_walk_tree_begin() failed: %s\n", cgroup_strerror(ret));
         return FALSE;
     }
 
@@ -92,8 +93,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
                despite the fact that the contents of the string are not modified */
             if(cgroup_get_procs((char*)relative_path, controller, &pids, &pids_size))
             {
-                // WARNING
-                printf("cgroup_get_procs() failed for cgroup: '%s'\n", relative_path);
+                log_message(WARNING, "cgroup_get_procs() failed for cgroup: '%s'\n", relative_path);
                 ret = cgroup_walk_tree_next(0, &handle, &info, base_level);
                 continue;
             }
@@ -163,7 +163,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     }
     else
     {
-        printf("Failed to read /proc/meminfo\n");
+        log_message(WARNING, "Failed to read /proc/meminfo\n");
         return FALSE;
     }
 
@@ -215,22 +215,21 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     if (!get_cgroup_for_pid(pid, cg_mem_info->cgroup_name, ARRAY_SIZE(cg_mem_info->cgroup_name)))
     {
         /* Failed to find a cgroup for the current process */
-        // WARNING
-        printf("failed to find a cgroup for the current process (PID: %d)\n", pid);
+        log_message(WARNING, "failed to find a cgroup for the current process (PID: %d)\n", pid);
         return FALSE;
     }
 
     group = cgroup_new_cgroup(cg_mem_info->cgroup_name);
     if (group == NULL)
     {
-        printf("cgroup_new_cgroup() failed for cgroup '%s'\n", cg_mem_info->cgroup_name);
+        log_message(WARNING, "cgroup_new_cgroup() failed for cgroup '%s'\n", cg_mem_info->cgroup_name);
         return FALSE;
     }
 
     ret = cgroup_get_cgroup(group);
     if (ret != 0)
     {
-        printf("cgroup_get_cgroup() failed for cgroup '%s': %s\n", 
+        log_message(WARNING, "cgroup_get_cgroup() failed for cgroup '%s': %s\n", 
             cg_mem_info->cgroup_name,
             cgroup_strerror(ret));
 
@@ -240,7 +239,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     group_controller = cgroup_get_controller(group, cgroup_memory_controller_name);
     if (group_controller == NULL)
     {
-        printf("cgroup_get_controller() failed for controller '%s' in cgroup '%s'\n",
+        log_message(WARNING, "cgroup_get_controller() failed for controller '%s' in cgroup '%s'\n",
             cgroup_memory_controller_name,
             cg_mem_info->cgroup_name);
 
@@ -256,7 +255,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
 
     if (ret != 0)
     {
-        printf("cgroup_get_value_uint64() failed for parameter '%s' in controller '%s': %s\n",
+        log_message(WARNING, "cgroup_get_value_uint64() failed for parameter '%s' in controller '%s': %s\n",
             cg_mem_info->current_usage_memory_interface,
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
@@ -274,8 +273,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
 
     if (ret != 0)
     {
-        // WARNING
-        printf("No cgroup limit was detected for parameter '%s' in controller '%s': %s\n",
+        log_message(INFO, "No cgroup limit was detected for parameter '%s' in controller '%s': %s\n",
             cg_mem_info->hard_limit_memory_interface,
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
@@ -292,8 +290,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
 
     if (ret != 0)
     {
-        // WARNING
-        printf("No cgroup limit was detected for parameter '%s' in controller '%s': %s\n",
+        log_message(INFO, "No cgroup limit was detected for parameter '%s' in controller '%s': %s\n",
             cg_mem_info->soft_limit_memory_interface,
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
@@ -310,7 +307,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
 
     if (ret != 0)
     {
-        printf("cgroup_get_value_uint64() failed for parameter '%s' in controller '%s': %s\n",
+        log_message(WARNING, "cgroup_get_value_uint64() failed for parameter '%s' in controller '%s': %s\n",
             cg_mem_info->swap_usage_memory_interface,
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
@@ -328,8 +325,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
 
     if (ret != 0)
     {
-        // WARNING
-        printf("No cgroup limit was detected for parameter '%s' in controller '%s': %s\n",
+        log_message(INFO, "No cgroup limit was detected for parameter '%s' in controller '%s': %s\n",
             cg_mem_info->swap_limit_memory_interface,
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
@@ -348,7 +344,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     );
 
     if (ret != 0){
-        printf("cgroup_read_stats_begin() failed for memory.stat in controller '%s': %s\n",
+        log_message(WARNING, "cgroup_read_stats_begin() failed for memory.stat in controller '%s': %s\n",
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
         goto error;
@@ -368,7 +364,7 @@ static BOOL init_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
         ret = cgroup_read_stats_next(&handle, &cg_stat);
 
         if (ret != 0){
-            printf("cgroup_read_stats_next() failed for memory.stat in controller '%s': %s\n",
+            log_message(WARNING, "cgroup_read_stats_next() failed for memory.stat in controller '%s': %s\n",
                 cgroup_memory_controller_name,
                 cgroup_strerror(ret));
             goto error;
@@ -411,7 +407,7 @@ static BOOL update_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     }
     else
     {
-        printf("cgroup_read_value_begin() failed for parameter '%s' in controller '%s': %s\n",
+        log_message(ERROR, "cgroup_read_value_begin() failed for parameter '%s' in controller '%s': %s\n",
                 cg_mem_info->current_usage_memory_interface,
                 cgroup_memory_controller_name,
                 cgroup_strerror(ret));
@@ -436,7 +432,7 @@ static BOOL update_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     }
     else
     {
-        printf("cgroup_read_value_begin() failed for parameter '%s' in controller '%s': %s\n",
+        log_message(ERROR, "cgroup_read_value_begin() failed for parameter '%s' in controller '%s': %s\n",
                 cg_mem_info->swap_usage_memory_interface,
                 cgroup_memory_controller_name,
                 cgroup_strerror(ret));
@@ -456,7 +452,7 @@ static BOOL update_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
     );
 
     if (ret != 0){
-        printf("cgroup_read_stats_begin() failed for memory.stat in controller '%s': %s\n",
+        log_message(ERROR, "cgroup_read_stats_begin() failed for memory.stat in controller '%s': %s\n",
             cgroup_memory_controller_name,
             cgroup_strerror(ret));
         return FALSE;
@@ -476,7 +472,7 @@ static BOOL update_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
         ret = cgroup_read_stats_next(&handle, &cg_stat);
 
         if (ret != 0){
-            printf("cgroup_read_stats_next() failed for memory.stat in controller '%s': %s\n",
+            log_message(ERROR, "cgroup_read_stats_next() failed for memory.stat in controller '%s': %s\n",
                 cgroup_memory_controller_name,
                 cgroup_strerror(ret));
             return FALSE;
@@ -496,8 +492,7 @@ struct cgroup_memory_info *get_cgroup_memory_info(void)
     {
         if (!init_cgroup_memory_info(&cg_mem_info))
         {
-            // WARNING
-            printf("cgroup_memory_info was not initialised\n");
+            log_message(WARNING, "cgroup_memory_info was not initialised\n");
             return NULL;
         }
     }
@@ -505,7 +500,7 @@ struct cgroup_memory_info *get_cgroup_memory_info(void)
     {
         if(!update_cgroup_memory_info(&cg_mem_info))
         {
-            printf("failed to update cgroup_memory_info\n");
+            log_message(ERROR, "failed to update cgroup_memory_info\n");
         }
     }
 

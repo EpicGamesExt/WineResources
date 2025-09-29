@@ -187,12 +187,12 @@ RUN git clone --progress --depth=1 -b "{{ TEMPLATE_WINE_RELEASE_TAG }}" 'https:/
 # Build libmemory-patches
 COPY --chown=nonroot:nonroot libmemory-patches /tmp/libmemory-patches
 RUN cd /tmp/libmemory-patches/ && \
-	gcc -std=c99 -shared -O2 -fvisibility=hidden "-I$WINE_SOURCE/include" -fPIC -o libmemory-patches64.so cgroups.c overcommit.c -lcgroup && \
+	gcc -std=c99 -shared -O2 -fvisibility=hidden "-I$WINE_SOURCE/include" -fPIC -o libmemory-patches64.so cgroups.c logger.c overcommit.c -lcgroup && \
 	cp libmemory-patches64.so /lib/x86_64-linux-gnu/libmemory-patches.so && \
 	cp libmemory-patches.h /usr/include/
 {% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
 RUN cd /tmp/libmemory-patches/ && \
-	gcc -std=c99 -shared -O2 -fvisibility=hidden "-I$WINE_SOURCE/include" -m32 -o libmemory-patches32.so cgroups.c overcommit.c -lcgroup && \
+	gcc -std=c99 -shared -O2 -fvisibility=hidden "-I$WINE_SOURCE/include" -m32 -o libmemory-patches32.so cgroups.c logger.c overcommit.c -lcgroup && \
 	cp libmemory-patches32.so /usr/lib/i386-linux-gnu/libmemory-patches.so
 {% endif %}
 

@@ -487,9 +487,14 @@ static BOOL update_cgroup_memory_info(struct cgroup_memory_info *cg_mem_info)
 struct cgroup_memory_info *get_cgroup_memory_info(void)
 {
     static struct cgroup_memory_info cg_mem_info = { 0 };
+    static BOOL init_called = FALSE;
+
+    // Only attempt init_cgroup_memory_info() once
+    if (init_called && !cg_mem_info.initialised) return NULL;
 
     if (!cg_mem_info.initialised)
     {
+        init_called = TRUE;
         if (!init_cgroup_memory_info(&cg_mem_info))
         {
             log_message(WARNING, "cgroup_memory_info was not initialised\n");

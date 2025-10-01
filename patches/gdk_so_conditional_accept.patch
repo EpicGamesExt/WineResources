@@ -1,0 +1,17 @@
+diff --git a/dlls/ws2_32/socket.c b/dlls/ws2_32/socket.c
+index d4223e93bd1da56b03370a221067f04f4b5525f1..22bd52ecb88a2d16d5a04b0fc25cf26dfbadbcb2 100644
+--- a/dlls/ws2_32/socket.c
++++ b/dlls/ws2_32/socket.c
+@@ -3375,6 +3375,12 @@ int WINAPI setsockopt( SOCKET s, int level, int optname, const char *optval, int
+             FIXME("Ignoring SO_REUSE_MULTICASTPORT\n");
+             return 0;
+ 
++        case SO_CONDITIONAL_ACCEPT:
++        {
++            FIXME("Ignoring SO_CONDITIONAL_ACCEPT\n");
++            return 0;
++        }
++
+         default:
+             TRACE("Unknown SOL_SOCKET optname: 0x%08x\n", optname);
+             /* fall through */

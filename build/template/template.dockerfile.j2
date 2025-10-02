@@ -268,11 +268,22 @@ RUN GOOS=windows GOARCH=amd64 go build -o /tmp/MSBuildWrapper.exe /tmp/MSBuildWr
 # (Note that this will not be built by default, it must be targeted explicitly by passing `--target artifacts` to the `docker buildx build` command)
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS artifacts
-COPY --from=builder --parents /opt/wine/wine64/lib/wine/x86_64-windows/*.dll /wine-debug-files/x86_64/
-COPY --from=builder --parents /tmp/wine/build64/dlls/*/x86_64-windows/*.pdb /wine-debug-files/x86_64/
+# The DLLs are already stored in a flat structure, so we just copy that over
+COPY --from=builder /opt/wine/wine64/lib/wine/x86_64-windows/*.dll /wine-debug-files/x86_64/
+COPY --from=builder --parents /tmp/wine/build64/dlls/*/x86_64-windows/*.pdb /tmp/wine-debug-files/
+# We move all PDBs into the top level, avoiding overwrites, and we then remove any empty folders
+# This leaves us with almost all PDBs in the flat structure, and any duplicates are preserved in the nested structure
+RUN cp -r /tmp/wine-debug-files/tmp/wine/build64/dlls/* /wine-debug-files/x86_64/ && \
+	cd /wine-debug-files/x86_64/ && \
+	find . -type f -exec mv -n {} . \; && \
+	find . -type d -empty -delete
 {% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
-COPY --from=builder --parents /opt/wine/wine64/lib/wine/i386-windows/*.dll /wine-debug-files/i386/
-COPY --from=builder --parents /tmp/wine/build32/dlls/*/i386-windows/*.pdb /wine-debug-files/i386/
+COPY --from=builder /opt/wine/wine64/lib/wine/i386-windows/*.dll /wine-debug-files/i386/
+COPY --from=builder --parents /tmp/wine/build32/dlls/*/i386-windows/*.pdb /tmp/wine-debug-files/
+RUN cp -r /tmp/wine-debug-files/tmp/wine/build32/dlls/* /wine-debug-files/i386/ && \
+	cd /wine-debug-files/i386/ && \
+	find . -type f -exec mv -n {} . \; && \
+	find . -type d -empty -delete
 {% endif %}
 
 # Copy the Wine build artifacts into our base image

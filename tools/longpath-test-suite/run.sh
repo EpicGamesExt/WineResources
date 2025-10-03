@@ -1,7 +1,5 @@
 #!/bin/bash
 REPO_ROOT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# FIXME Use the current shell's WINEPREFIX if it has been set
-#export WINEPREFIX=${REPO_ROOT}/temp/wine
 
 #Slightly shorter
 #LONG_FOLDER=this_right_here_is_a_noticeably_lengthy_name_for_the_topmost_parent_directory_that_sits_directly_under_the_c_drive/this_right_here_is_a_noticeably_lengthy_name_for_the_nested_subdirectory_that_sits_directly_under_the_topmost_parent_directory
@@ -9,10 +7,12 @@ REPO_ROOT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 LONG_FOLDER=this_right_here_is_a_noticeably_lengthy_name_for_the_topmost_parent_directory_that_sits_directly_under_the_c_drive/this_right_here_is_a_noticeably_lengthy_name_for_the_nested_subdirectory_that_sits_directly_under_the_topmost_parent_directory/this_right_here_is_a_noticeably_lengthy_name_for_yet_another_nested_subdirectory_sitting_further_under_the_parent_directory
 
 LONG_NAME=this_right_here_is_a_noticeably_lengthy_name_for_the_file_that_sits_directly_under_the_nested_subdirectory
-# TODO Argument for wine invocation
 
-#FIXME Wineboot if drive_c doesn't exist yet
-#wineboot && wineserver --wait
+# Wineboot if drive_c doesn't exist yet
+if [ ! -d "${WINEPREFIX}/drive_c" ]; then
+    wineboot && wineserver --wait
+fi
+
 mkdir -p ${WINEPREFIX}/drive_c/${LONG_FOLDER}/relative_subfolder
 mkdir -p ${WINEPREFIX}/drive_c/short_folder/relative_subfolder
 # Example text should be at least 16 bytes long for sanity checks
@@ -77,4 +77,5 @@ rm -f ${WINEPREFIX}/drive_c/${LONG_FOLDER}/${LONG_NAME}Symlink.txt
 rm -f ${WINEPREFIX}/drive_c/shortyHardlink.txt
 rm -f ${WINEPREFIX}/drive_c/${LONG_FOLDER}/${LONG_NAME}Hardlink.txt
 
-$1 ${REPO_ROOT}/bin/longpath.exe
+# Must pass in wine binary as argument
+$1 ${REPO_ROOT}/bin/longpath.exe -v

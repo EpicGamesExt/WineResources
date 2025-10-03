@@ -7,6 +7,7 @@
 #include <direct.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #if 1
 #define LONG_FOLDER \
@@ -71,11 +72,11 @@
 static const WCHAR longFile[] = L"C:\\" LONG_FOLDER L"\\" LONG_FILE_NAME FILE_EXT;
 static const WCHAR shortFile[] = L"C:\\" SHORT_FILE_NAME FILE_EXT;
 static size_t fileSize = 19; // bytes
-// TODO For consistency Remove shortbuffer and only use the long buffers
 static WCHAR shortBuffer[MAX_PATH + 1]; // Global buffer for test functions to use as they wish
 static WCHAR longBuffer[MAX_PATH * 2];
 static WCHAR longBufferAlt[MAX_PATH * 2];
 static ULONGLONG JAN_1_2000 = 125911584000000000; // https://www.silisoftware.com/tools/date.php
+static bool verbose = false;
 
 enum class ReturnCode : int
 {
@@ -631,8 +632,6 @@ TestCreateFileW(const WCHAR* oldFile, const WCHAR* newFile, DWORD flags)
     FILE* file;
     DWORD errorCode;
 
-    // TODO LOTS of repetition in this test, try to cut it down without making it more complicated
-
     SetLastError(0); // Throw away any lingering error
     printf("Testing: CreateFileW. Input path lengths: %i and %i\n", lstrlenW(oldFile), lstrlenW(newFile));
 
@@ -896,8 +895,6 @@ TestCreateFile2(const WCHAR* oldFile, const WCHAR* newFile, DWORD attributes, DW
     FILE* file;
     DWORD errorCode;
     CREATEFILE2_EXTENDED_PARAMETERS params = {};
-
-    // TODO As with CreateFileW, LOTS of repetition in this test, try to cut it down without making it more complicated
 
     SetLastError(0); // Throw away any lingering error
     printf("Testing: CreateFile2. Input path lengths: %i and %i\n", lstrlenW(oldFile), lstrlenW(newFile));
@@ -1493,7 +1490,8 @@ TestGetFullPathNameW(const WCHAR* path, const WCHAR* comparisonPath)
          * Wine's policy is to invisibly act as if longpath support is always enabled so simply ignore the
          * prefix if it shows up. */
         if (wcsncmp(buffer, L"\\\\?\\", 4) == 0) {
-            // TODO Verbose mode only: printf("\tNote: GetLongPathNameW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
+            if (verbose)
+                printf("\tNote: GetLongPathNameW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
             check += 4;
             checkLength -= 4;
         }
@@ -1563,7 +1561,8 @@ TestGetLongPathNameW(const WCHAR* path, const WCHAR* comparisonPath)
             * Wine's policy is to invisibly act as if longpath support is always enabled so simply ignore the
             * prefix if it shows up. */
         if (wcsncmp(buffer, L"\\\\?\\", 4) == 0) {
-            // TODO Verbose mode only: printf("\tNote: GetLongPathNameW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
+            if (verbose)
+                printf("\tNote: GetLongPathNameW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
             check += 4;
             checkLength -= 4;
         }
@@ -1864,7 +1863,8 @@ TestSearchPathW(const WCHAR* path, const WCHAR* filename, const WCHAR* extension
          * Wine's policy is to invisibly act as if longpath support is always enabled so simply ignore the
          * prefix if it shows up. */
         if (wcsncmp(buffer, L"\\\\?\\", 4) == 0) {
-            // TODO Verbose mode only: printf("\tNote: GetFinalPathNameByHandleW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
+            if (verbose)
+                printf("\tNote: GetFinalPathNameByHandleW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
             check += 4;
             checkLength -= 4;
         }
@@ -1906,21 +1906,21 @@ TestFindFirstStreamW(const WCHAR* path)
     file = FindFirstStreamW(path, FindStreamInfoStandard, &data, 0);
 
     if (file == INVALID_HANDLE_VALUE) {
-        // TODO Return as an expected failure
         printf("\tError: Could not retrieve stream for file %S\n", path);
         PrintWindowsError(GetLastError());
-        return ReturnCode::ExpectedFailure; // TODO Expected Failure
+        return ReturnCode::ExpectedFailure;
     }
 
-    /* TODO Verbose output
-    do {
-        printf("\tStream Name: %.*S\n", MAX_PATH + 36, data.cStreamName);
-    } while (FindNextStreamW(file, &data));
-    */
+    if (verbose) {
+        do {
+            printf("\tStream Name: %.*S\n", MAX_PATH + 36, data.cStreamName);
+        } while (FindNextStreamW(file, &data));
+    }
 
-    // TODO Need some sort of sanity check to confirm the result
+    /* TODO If this ever gets implemented there will need to be a test made to confirm the contents
+     * of the streams. There didn't seem to be a way to test this on ext4 at time of writing. */
 
-    return ReturnCode::UnexpectedSuccess; // TODO Unexpected Success
+    return ReturnCode::UnexpectedSuccess;
 }
 
 static ReturnCode
@@ -1957,7 +1957,7 @@ TestGetFinalPathNameByHandleW(const WCHAR* path, DWORD flags)
     expectedLength = lstrlenW(path);
     printf("Testing: GetFinalPathNameByHandleW. Input path length: %i, Flags:", expectedLength);
     if (flags & FILE_NAME_OPENED) {
-        /* TODO As of writing, FILE_NAME_OPENED is not supported by Wine (as it requires changes to the Wine
+        /* As of writing, FILE_NAME_OPENED is not supported by Wine (as it requires changes to the Wine
          * Server) and so acts the same as FILE_NAME_NORMALIZED. If this is changed in the future this test
          * may need additional code path/s. */
         printf(" FILE_NAME_OPENED");
@@ -2050,7 +2050,8 @@ TestGetFinalPathNameByHandleW(const WCHAR* path, DWORD flags)
              * Wine's policy is to invisibly act as if longpath support is always enabled so simply ignore the
              * prefix if it shows up. */
             if (wcsncmp(buffer, L"\\\\?\\", 4) == 0) {
-                // TODO Verbose mode only: printf("\tNote: GetFinalPathNameByHandleW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
+                if (verbose)
+                    printf("\tNote: GetFinalPathNameByHandleW has returned a path prepended with the UNC prefix \"\\\\?\\\"\n");
                 check += 4;
                 checkLength -= 4;
             }
@@ -2124,19 +2125,18 @@ struct ResultCounters
     }
 };
 
-// MinGW does not support wmain
 int
 main( int argc, char *argv[ ] )
 {
     ResultCounters results;
-    // TODO Wrap tests with structured exception handling to catch unexpected issues
-    // TODO Can pass target file name/s from a run arg or environment variable? Some tests require their own files but the intermediate paths could be provided
-    // TODO Process arguments using dmulholl/args
-
-    // Preliminary assumptions
-    // TODO lstrlenW
-
     // Directory management functions with opt-in long path support
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
+            verbose = true;
+            printf("Printing verbose output\n");
+        }
+    }
 
     { // CreateDirectoryW
         results.AddResult(TestCreateDirectoryW(L"C:\\" CREATE_FOLDER));

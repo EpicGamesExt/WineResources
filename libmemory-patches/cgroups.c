@@ -63,6 +63,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
     if (ret != 0)
     {
         log_message(WARNING, "cgroup_get_subsys_mount_point() failed: %s\n", cgroup_strerror(ret));
+        free(mount_point);
         return FALSE;
     }
 
@@ -71,6 +72,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
     if (ret != 0)
     {
         log_message(WARNING, "cgroup_walk_tree_begin() failed: %s\n", cgroup_strerror(ret));
+        free(mount_point);
         return FALSE;
     }
 
@@ -95,6 +97,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
             {
                 log_message(WARNING, "cgroup_get_procs() failed for cgroup: '%s'\n", relative_path);
                 ret = cgroup_walk_tree_next(0, &handle, &info, base_level);
+                free(pids);
                 continue;
             }
 
@@ -104,15 +107,20 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
                 {
                     snprintf(cgroup_name, name_size, "%s", relative_path);
                     cgroup_walk_tree_end(&handle);
+                    free(mount_point);
+                    free(pids);
                     return TRUE;
                 }
             }
+
+            free(pids);
         }
 
         ret = cgroup_walk_tree_next(0, &handle, &info, base_level);
     }
 
     /* No cgroup was found for the given PID. */
+    free(mount_point);
     cgroup_walk_tree_end(&handle);
     return FALSE;
 }

@@ -1,0 +1,12 @@
+diff --git a/dlls/apisetschema/apisetschema.spec b/dlls/apisetschema/apisetschema.spec
+index 1f40225a9f1e8fd156142d00d5075fe5b7fcbd3f..431b67be4020101f31de6a40e8b5bb7389014ec0 100644
+--- a/dlls/apisetschema/apisetschema.spec
++++ b/dlls/apisetschema/apisetschema.spec
+@@ -33,6 +33,7 @@ apiset api-ms-win-core-crt-l1-1-0 = msvcrt.dll
+ apiset api-ms-win-core-crt-l2-1-0 = msvcrt.dll
+ apiset api-ms-win-core-datetime-l1-1-1 = kernelbase.dll
+ apiset api-ms-win-core-debug-l1-1-1 = kernelbase.dll
++apiset api-ms-win-core-debug-minidump-l1-1-1 = dbghelp.dll
+ apiset api-ms-win-core-delayload-l1-1-1 = kernelbase.dll
+ apiset api-ms-win-core-enclave-l1-1-1 = kernelbase.dll
+ apiset api-ms-win-core-errorhandling-l1-1-3 = kernelbase.dll

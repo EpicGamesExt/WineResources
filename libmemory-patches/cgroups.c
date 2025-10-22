@@ -98,6 +98,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
                 log_message(WARNING, "cgroup_get_procs() failed for cgroup: '%s'\n", relative_path);
                 ret = cgroup_walk_tree_next(0, &handle, &info, base_level);
                 free(pids);
+                pids = NULL;
                 continue;
             }
 
@@ -114,6 +115,7 @@ static BOOL get_cgroup_for_pid(pid_t pid, char *cgroup_name, unsigned int name_s
             }
 
             free(pids);
+            pids = NULL;
         }
 
         ret = cgroup_walk_tree_next(0, &handle, &info, base_level);

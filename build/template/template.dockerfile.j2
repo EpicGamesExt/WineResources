@@ -313,9 +313,6 @@ COPY --from=builder /usr/lib/i386-linux-gnu/libcgroup.* /usr/lib/i386-linux-gnu/
 # Disable interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Enable the memory shim
-ENV LD_PRELOAD=memory-shim.so
-
 # Install Wine's runtime dependencies
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -391,6 +388,8 @@ RUN groupadd -g {{ TEMPLATE_GROUP_ID }} {{ TEMPLATE_USER_NAME }} && \
 
 {% endif %}
 
+# Enable the memory shim
+ENV LD_PRELOAD=memory-shim.so
 
 # Create a new 64-bit Wine prefix for our non-root user
 ENV WINEARCH=win64

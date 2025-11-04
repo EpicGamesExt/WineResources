@@ -421,8 +421,8 @@ RUN \
 USER {{ TEMPLATE_USER_NAME }}
 
 # Copy our system-wide MSBuild property overrides files into the image
-{% set COMMON_IMPORTAFTER = "${WINEPREFIX}/drive_c/users/steamuser/AppData/Local/Microsoft/MSBuild/Current/Imports/Microsoft.Common.props/ImportAfter" %}
-{% set NETFRAMEWORK_IMPORTAFTER = "${WINEPREFIX}/drive_c/users/steamuser/AppData/Local/Microsoft/MSBuild/Current/Microsoft.NETFramework.props/ImportAfter" %}
+{% set COMMON_IMPORTAFTER = "${WINEPREFIX}/drive_c/users/" ~ TEMPLATE_USER_NAME ~ "/AppData/Local/Microsoft/MSBuild/Current/Imports/Microsoft.Common.props/ImportAfter" %}
+{% set NETFRAMEWORK_IMPORTAFTER = "${WINEPREFIX}/drive_c/users/" ~ TEMPLATE_USER_NAME ~ "/AppData/Local/Microsoft/MSBuild/Current/Microsoft.NETFramework.props/ImportAfter" %}
 RUN mkdir -p \
 	"{{ COMMON_IMPORTAFTER }}" \
 	"{{ NETFRAMEWORK_IMPORTAFTER }}" 

@@ -316,8 +316,21 @@ index 6e4e68d6ebfb6555b92afe6e9fa6e7422e6d0415..b2f0c27abcfc36abf15805acf900ce7a
 +UNIX_LIBS   = $(LDEXECFLAGS) $(RT_LIBS) $(INOTIFY_LIBS) $(PROCSTAT_LIBS) -lmemory-patches
  
  unicode_EXTRADEFS = -DBINDIR="\"${bindir}\"" -DDATADIR="\"${datadir}\""
+diff --git a/server/file.c b/server/file.c
+index 8f6566a0077dd77f56c48c98536e731fa1aeada6..4eb2b1bd1628db489420c01a3324cd55b3e6ba32 100644
+--- a/server/file.c
++++ b/server/file.c
+@@ -617,6 +617,8 @@ void file_set_error(void)
+     case ENXIO:     set_error( STATUS_NO_SUCH_DEVICE ); break;
+     case EXDEV:     set_error( STATUS_NOT_SAME_DEVICE ); break;
+     case ELOOP:     set_error( STATUS_REPARSE_POINT_NOT_RESOLVED ); break;
++    case EFAULT:    set_error( STATUS_INVALID_ADDRESS ); break;
++    case ENOMEM:    set_error( STATUS_NO_MEMORY ); break;
+ #ifdef EOVERFLOW
+     case EOVERFLOW: set_error( STATUS_INVALID_PARAMETER ); break;
+ #endif
 diff --git a/server/mapping.c b/server/mapping.c
-index 7edadcbbedaaff176ebb8a02411ecebaecef3df3..97db23342701cccb9f4d520901bfeda0b00852e9 100644
+index 7edadcbbedaaff176ebb8a02411ecebaecef3df3..cd8037035cbe4418ae561df6940b41a7787bdb99 100644
 --- a/server/mapping.c
 +++ b/server/mapping.c
 @@ -43,6 +43,8 @@
@@ -329,7 +342,49 @@ index 7edadcbbedaaff176ebb8a02411ecebaecef3df3..97db23342701cccb9f4d520901bfeda0
  /* list of memory ranges, used to store committed info */
  struct ranges
  {
-@@ -377,7 +379,17 @@ static int create_temp_file( file_pos_t size )
+@@ -352,6 +354,41 @@ static int check_current_dir_for_exec(void)
+     return (ret != MAP_FAILED);
+ }
+ 
++
++/**************************************************************************************************/
++
++#ifdef __linux__
++
++/* create a memory-backed file for anonymous mappings */
++static int create_memfd_file( file_pos_t size )
++{
++    int fd;
++    
++    if (overcommit_prevention_enabled() && memory_available_for_commit(size) == FALSE)
++    {
++        set_error(STATUS_NO_MEMORY);
++        return -1;
++    }
++    
++    fd = memfd_create("wine_anonymous_mapping", 0);
++    if (fd == -1)
++    {
++        file_set_error();
++        return -1;
++    }
++    
++    if (ftruncate(fd, size) != 0)
++    {
++        file_set_error();
++        close( fd );
++        return -1;
++    }
++    
++    return fd;
++}
++
++#else
++
+ /* create a temp file for anonymous mappings */
+ static int create_temp_file( file_pos_t size )
+ {
+@@ -377,7 +414,17 @@ static int create_temp_file( file_pos_t size )
      fd = make_temp_file( tmpfn );
      if (fd != -1)
      {
@@ -348,8 +403,28 @@ index 7edadcbbedaaff176ebb8a02411ecebaecef3df3..97db23342701cccb9f4d520901bfeda0
          {
              close( fd );
              fd = -1;
-@@ -646,6 +658,10 @@ static int build_shared_mapping( struct mapping *mapping, size_t align_mask, int
+@@ -390,6 +437,11 @@ static int create_temp_file( file_pos_t size )
+     return fd;
+ }
+ 
++#endif
++
++/**************************************************************************************************/
++
++
+ /* find a memory view from its base address */
+ struct memory_view *find_mapped_view( struct process *process, client_ptr_t base )
+ {
+@@ -643,9 +695,18 @@ static int build_shared_mapping( struct mapping *mapping, size_t align_mask, int
+ 
+     /* create a temp file for the mapping */
+ 
++    #ifdef __linux__
++    if ((shared_fd = create_memfd_file( total_size )) == -1) return 0;
++    #else
      if ((shared_fd = create_temp_file( total_size )) == -1) return 0;
++    #endif
++
      if (!(file = create_file_for_fd( shared_fd, FILE_GENERIC_READ|FILE_GENERIC_WRITE, 0 ))) return 0;
  
 +    if (overcommit_prevention_enabled() && memory_available_for_commit(max_size) == FALSE)
@@ -359,7 +434,21 @@ index 7edadcbbedaaff176ebb8a02411ecebaecef3df3..97db23342701cccb9f4d520901bfeda0
      if (!(buffer = malloc( max_size ))) goto error;
  
      /* copy the shared sections data into the temp file */
-@@ -1743,3 +1759,22 @@ DECL_HANDLER(get_mapping_filename)
+@@ -1088,7 +1149,13 @@ static struct mapping *create_mapping( struct object *root, const struct unicode
+         }
+         if ((flags & SEC_RESERVE) && !(mapping->committed = create_ranges())) goto error;
+         mapping->size = round_size( mapping->size, page_mask );
++        
++        #ifdef __linux__
++        if ((unix_fd = create_memfd_file( mapping->size )) == -1) goto error;
++        #else
+         if ((unix_fd = create_temp_file( mapping->size )) == -1) goto error;
++        #endif
++        
+         if (!(mapping->fd = create_anonymous_fd( &mapping_fd_ops, unix_fd, &mapping->obj,
+                                                  FILE_SYNCHRONOUS_IO_NONALERT ))) goto error;
+         allow_fd_caching( mapping->fd );
+@@ -1743,3 +1810,22 @@ DECL_HANDLER(get_mapping_filename)
  
      release_object( process );
  }

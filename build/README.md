@@ -28,7 +28,7 @@ Run the appropriate wrapper script depending on the operating system:
 
 This will automatically install the Python packages that the build script depends upon, and then run the Python build script itself.
 
-The Python build script will render the Dockerfile template with the default options and build the container image from the rendered Dockerfile. Once the build completes, the container image will be available with the tag `epicgames/wine-patched:10.10`.
+The Python build script will render the Dockerfile template with the default options and build the container image from the rendered Dockerfile. Once the build completes, the container image will be available with the tag `epicgames/wine-patched:10.20`.
 
 
 ## Rendering the template without building an image

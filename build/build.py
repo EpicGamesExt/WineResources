@@ -7,10 +7,10 @@ from pathlib import Path
 class VersionConstants:
 	
 	# The git tag for the version of Wine that we support
-	WINE_RELEASE_TAG = 'wine-10.10'
+	WINE_RELEASE_TAG = 'wine-10.20'
 	
 	# The corresponding version number for the Wine Ubuntu packages (which we use to identify build dependencies)
-	WINE_PACKAGE_VERSION = '10.10'
+	WINE_PACKAGE_VERSION = '10.20'
 	
 	# The version of Wine Mono used by our supported version of Wine
 	# (See: <https://gitlab.winehq.org/wine/wine/-/wikis/Wine-Mono#versions>)

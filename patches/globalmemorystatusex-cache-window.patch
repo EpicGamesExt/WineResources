@@ -1,5 +1,5 @@
 diff --git a/dlls/kernelbase/memory.c b/dlls/kernelbase/memory.c
-index 390180121994fcd0f9f064220f1e4d22ba931f87..e2fbcf2d657801f5c7a21d8aa05a2c61b9de2df2 100644
+index c0a3d65d3417331705c4859d370489a105197432..253914ad0cfbc6a4746e21092c6e3fc97e04d573 100644
 --- a/dlls/kernelbase/memory.c
 +++ b/dlls/kernelbase/memory.c
 @@ -96,6 +96,34 @@ static void send_cross_process_notification( CROSS_PROCESS_WORK_LIST *list, UINT
@@ -37,7 +37,7 @@ index 390180121994fcd0f9f064220f1e4d22ba931f87..e2fbcf2d657801f5c7a21d8aa05a2c61
  
  /***********************************************************************
   * Virtual memory functions
-@@ -1351,12 +1379,20 @@ BOOL WINAPI DECLSPEC_HOTPATCH GlobalMemoryStatusEx( MEMORYSTATUSEX *status )
+@@ -1412,12 +1440,20 @@ BOOL WINAPI DECLSPEC_HOTPATCH GlobalMemoryStatusEx( MEMORYSTATUSEX *status )
          SetLastError( ERROR_INVALID_PARAMETER );
          return FALSE;
      }

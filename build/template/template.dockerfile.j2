@@ -253,6 +253,19 @@ RUN cd /opt/wine/wine64/bin && \
 {% endif %}
 
 
+# Temporary fix for Wine 10.20: remove the incomplete ICU libraries that cause crashes when running .NET
+RUN rm \
+	/opt/wine/wine64/lib/wine/x86_64-windows/icu.dll \
+	/opt/wine/wine64/lib/wine/x86_64-windows/icuuc.dll \
+	/opt/wine/wine64/lib/wine/x86_64-windows/icuin.dll
+{% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
+RUN rm \
+	/opt/wine/wine64/lib/wine/i386-windows/icu.dll \
+	/opt/wine/wine64/lib/wine/i386-windows/icuuc.dll \
+	/opt/wine/wine64/lib/wine/i386-windows/icuin.dll
+{% endif %}
+
+
 {% if TEMPLATE_ENABLE_MITIGATIONS %}
 
 # The version of MSBuild that comes bundled with Mono is a batch file, but UAT expects an executable,

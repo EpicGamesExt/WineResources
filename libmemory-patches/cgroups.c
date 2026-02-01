@@ -17,6 +17,25 @@
 #define TRUE 1
 #endif
 
+u_int64_t get_env_var_memory_limit(void)
+{
+    static bool env_var_memory_limit_read = false;
+    static u_int64_t env_var_memory_limit = 0;
+
+    if (!env_var_memory_limit_read)
+    {
+        const char *str = getenv( "WINE_OVERRIDE_MEMORY_LIMIT_BYTES" );
+
+        if (str)
+        {
+            env_var_memory_limit = strtoull(str, NULL, 10);
+        }
+        env_var_memory_limit_read = true;
+    }
+
+    return env_var_memory_limit;
+}
+
 BOOL use_cgroup_soft_memory_limit(void)
 {
     static int use_soft_memory_limit = -1;
@@ -531,7 +550,12 @@ struct current_memory_info get_current_memory_info(void)
 
     struct cgroup_memory_info *cg_mem_info = get_cgroup_memory_info();
 
-    if(cg_mem_info &&
+    u_int64_t env_var_memory_limit = get_env_var_memory_limit();
+    if (cg_mem_info && env_var_memory_limit != 0)
+    {
+        memory_limit = env_var_memory_limit;
+    }
+    else if (cg_mem_info &&
         use_cgroup_soft_memory_limit() &&
         cg_mem_info->soft_limit < cg_mem_info->hard_limit &&
         cg_mem_info->soft_limit > 0)

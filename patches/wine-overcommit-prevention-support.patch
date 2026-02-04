@@ -246,7 +246,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
          VIRTUAL_DEBUG_DUMP_VIEW( view );
 +
 +        /* if overcommit prevention is enabled and we performed a commit, then touch the commited pages */
-+        if (write_consumes_memory && overcommit_prevention_enabled()) {
++        if (write_consumes_memory && (overcommit_prevention_enabled() || overcommit_prevention_exempt())) {
 +            touch_committed_pages(view->base, size, protect);
 +        }
      }
@@ -272,7 +272,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
          *size_ptr = size;
 +
 +        /* if overcommit prevention is enabled and we performed a commit, then touch the commited pages */
-+        if ((type & MEM_COMMIT) && overcommit_prevention_enabled()) {
++        if ((type & MEM_COMMIT) && (overcommit_prevention_enabled() || overcommit_prevention_exempt())) {
 +            touch_committed_pages(base, size, protect);
 +        }
      }
@@ -300,7 +300,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
              status = set_protection( view, base, size, new_prot );
 +
 +            /* if overcommit prevention is enabled and write access was granted then touch the pages */
-+            if (overcommit_prevention_enabled() && write_or_copy_added) {
++            if ((overcommit_prevention_enabled() || overcommit_prevention_exempt()) && write_or_copy_added) {
 +                touch_committed_pages(base, size, new_prot);
 +            }
          }

@@ -40,6 +40,90 @@ static const uint32_t page_writecopy_flags =
 
 
 /***********************************************************************
+ *           overcommit_prevention_exempt
+ *
+ * Determines if this process is exempt from overcommit prevention, but
+ * should still have it's writable memory mapped pages touched to ensure
+ * accurate memory tracking.
+ */
+int overcommit_prevention_exempt(void)
+{
+    static int overcommit_exempt = -1;
+
+    if (overcommit_exempt == -1)
+    {
+        int exempt_debug;
+        {
+            const char *debug_env_var = getenv( "WINE_PREVENT_OVERCOMMIT_EXEMPT_DEBUG" );
+            exempt_debug = debug_env_var && atoi(debug_env_var);
+        }
+
+        const char *env_var = getenv( "WINE_PREVENT_OVERCOMMIT_EXEMPT" );
+        if (env_var)
+        {
+            FILE *fp;
+            if (fp = fopen("/proc/self/cmdline", "r"))
+            {
+                char argument[1024];
+                char buffer[1024];
+                size_t arg_offset = 0;
+                if (exempt_debug)
+                {
+                    puts("/proc/self/cmdline tolower:");
+                }
+                size_t read;
+                do
+                {
+                    read = fread(buffer, 1, sizeof buffer, fp);
+                    for (size_t i = 0; i < read; i++)
+                    {
+                        if (arg_offset < (sizeof argument) - 1)
+                        {
+                            argument[arg_offset++] = tolower(buffer[i]);
+                        }
+                        else
+                        {
+                            argument[(sizeof argument) - 1] = '\0';
+                        }
+
+                        if (buffer[i] == '\0')
+                        {
+                            int non_empty_argument = arg_offset > 1;
+                            arg_offset = 0;
+
+                            if (non_empty_argument && exempt_debug)
+                            {
+                                puts(argument);
+                            }
+
+                            if (non_empty_argument && strstr(argument, env_var))
+                            {
+                                if (exempt_debug)
+                                {
+                                    printf(
+                                        "detected process name from WINE_PREVENT_OVERCOMMIT_EXEMPT '%s' is present in cmdline tolower argument '%s'. overcommit prevention will be turned off for this specific process.\n", 
+                                        env_var, 
+                                        argument);
+                                }
+                                overcommit_exempt = 1;
+                            }
+                        }
+                    }
+                } while (read > 0);
+                fclose(fp);
+            }
+        }
+
+        if (overcommit_exempt == -1)
+        {
+            overcommit_exempt = 0;
+        }
+    }
+
+    return overcommit_exempt;
+}
+
+/***********************************************************************
  *           overcommit_prevention_enabled
  *
  * Determines whether we will attempt to prevent memory from being overcommitted.
@@ -47,6 +131,14 @@ static const uint32_t page_writecopy_flags =
 int overcommit_prevention_enabled(void)
 {
     static int prevent_overcommit = -1;
+
+    if (prevent_overcommit == -1)
+    {
+        if (overcommit_prevention_exempt())
+        {
+            prevent_overcommit = 0;
+        }
+    }
 
     if (prevent_overcommit == -1)
     {

@@ -1,0 +1,46 @@
+diff --git a/programs/cmd/wcmdmain.c b/programs/cmd/wcmdmain.c
+index 41790edd4e9..ffcb47bf629 100644
+--- a/programs/cmd/wcmdmain.c
++++ b/programs/cmd/wcmdmain.c
+@@ -3516,7 +3516,7 @@ static BOOL rebuild_command_for(struct command_rebuild *rb, const CMD_NODE *node
+ 
+     /* append variable and the rest */
+     ret = ret && rebuild_sprintf(rb, L"%%%c in (", for_ctrl->variable_index) &&
+-        rebuild_expand_and_append(rb, for_ctrl->set, rbflags.depth == 0) &&
++        (!for_ctrl->set || rebuild_expand_and_append(rb, for_ctrl->set, rbflags.depth == 0)) &&
+         rebuild_append(rb, L") do ") &&
+         rebuild_append_command(rb, node->do_block, new_rflags);
+     if (ret && node->do_block->op == CMD_SINGLE)
+@@ -4265,8 +4265,13 @@ static RETURN_CODE for_control_execute_fileset(CMD_FOR_CONTROL *for_ctrl, CMD_NO
+     FILE *input;
+     int i;
+ 
+-    wcscpy(set, for_ctrl->set);
+-    handleExpansion(set, TRUE);
++    if (for_ctrl->set)
++    {
++        wcscpy(set, for_ctrl->set);
++        handleExpansion(set, TRUE);
++    }
++    else
++        set[0] = L'\0';
+ 
+     args = WCMD_skip_leading_spaces(set);
+     for (len = wcslen(args); len && (args[len - 1] == L' ' || args[len - 1] == L'\t'); len--)
+@@ -4338,8 +4343,14 @@ static RETURN_CODE for_control_execute_set(CMD_FOR_CONTROL *for_ctrl, const WCHA
+     else
+         len = 0;
+ 
+-    wcscpy(set, for_ctrl->set);
+-    handleExpansion(set, TRUE);
++    if (for_ctrl->set)
++    {
++        wcscpy(set, for_ctrl->set);
++        handleExpansion(set, TRUE);
++    }
++    else
++        set[0] = L'\0';
++
+     for (i = 0; !WCMD_is_break(return_code); i++)
+     {
+         WCHAR *element = WCMD_parameter(set, i, NULL, TRUE, FALSE);

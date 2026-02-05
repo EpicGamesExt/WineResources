@@ -1,0 +1,15 @@
+diff --git a/programs/findstr/main.c b/programs/findstr/main.c
+index 7e8a3299e89..2bb1e4b1939 100644
+--- a/programs/findstr/main.c
++++ b/programs/findstr/main.c
+@@ -172,7 +172,9 @@ static BOOL match_star(char c, const char *str, const char *regexp, UINT pos, BO
+ static BOOL match_regexp(const char *str, const char *regexp, BOOL case_sensitive)
+ {
+     if (strstr(regexp, "[")) FIXME("character ranges (i.e. [abc], [^a-z]) are not supported\n");
+-    if (strstr(regexp, "\\<") || strstr(regexp, "\\>")) FIXME("word position (i.e. \\< and \\>) not supported\n");
++    if (strstr(regexp, "\\>")) FIXME("end of word position (i.e. \\>) not supported\n");
++
++    if (regexp[0] == '\\' && regexp[1] == '<') return match_here(str, regexp, 2, case_sensitive);
+ 
+     if (regexp[0] == '^') return match_here(str, regexp, 1, case_sensitive);
+     do { if (match_here(str, regexp, 0, case_sensitive)) return TRUE; } while (*str++);

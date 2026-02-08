@@ -1,0 +1,58 @@
+diff --git a/dlls/kernelbase/sync.c b/dlls/kernelbase/sync.c
+index cff93c17598..db6d53da9e3 100644
+--- a/dlls/kernelbase/sync.c
++++ b/dlls/kernelbase/sync.c
+@@ -156,6 +156,30 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetSystemTimes( FILETIME *idle, FILETIME *kernel,
+         kernel_time.QuadPart += info[i].KernelTime.QuadPart;
+         user_time.QuadPart += info[i].UserTime.QuadPart;
+     }
++
++    static int is_smt_disabled = -1;
++    if (is_smt_disabled == -1)
++    {
++        char str[2] = {0, 0};
++        if (GetEnvironmentVariableA( "WINE_IS_SMT_DISABLED", str, 2 ))
++        {
++            is_smt_disabled = str[0] == '1' && str[1] == '\0';
++        }
++    }
++    if (is_smt_disabled)
++    {
++        LARGE_INTEGER total_time;
++        total_time.QuadPart = 
++            idle_time.QuadPart +
++            kernel_time.QuadPart +
++            user_time.QuadPart;
++        idle_time.QuadPart -= total_time.QuadPart / 2;
++        if (idle_time.QuadPart < 0)
++        {
++            idle_time.QuadPart = 0;
++        }
++    }
++
+     if (idle)
+     {
+         idle->dwLowDateTime  = idle_time.u.LowPart;
+diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
+index efc5914577b..7247307fdd2 100644
+--- a/dlls/ntdll/unix/system.c
++++ b/dlls/ntdll/unix/system.c
+@@ -1155,7 +1155,18 @@ static NTSTATUS create_logical_proc_info(void)
+     }
+     fclose(fcpu_list);
+ 
++    static int is_smt_disabled = -1;
++    if (is_smt_disabled == -1)
++    {
++        const char *str = getenv( "WINE_IS_SMT_DISABLED" );
++        is_smt_disabled = str && atoi(str) == 1;
++    }
++
+     num_cpus = count_bits(all_cpus_mask);
++    if (is_smt_disabled)
++    {
++        num_cpus /= 2;
++    }
+ 
+     fnuma_list = fopen("/sys/devices/system/node/online", "r");
+     if (!fnuma_list)

@@ -39,6 +39,6 @@ The [**docs**](./docs) subdirectory contains documentation related to the resour
 
 ## Legal
 
-&copy; 2024, Epic Games, Inc. The code in this repository is licensed under the MIT License, see the file [LICENSE](./LICENSE) for details.
+&copy; 2024 - 2026, Epic Games, Inc. The code in this repository is licensed under the MIT License, see the file [LICENSE](./LICENSE) for details.
 
 Unreal and its logo are Epic's trademarks or registered trademarks in the US and elsewhere.

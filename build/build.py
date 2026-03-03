@@ -1,20 +1,7 @@
 #!/usr/bin/env python3
-import argparse, shutil, subprocess, sys
+import argparse, json, shutil, subprocess, sys
 from glob import glob
 from pathlib import Path
-
-
-class VersionConstants:
-	
-	# The git tag for the version of Wine that we support
-	WINE_RELEASE_TAG = 'wine-10.20'
-	
-	# The corresponding version number for the Wine Ubuntu packages (which we use to identify build dependencies)
-	WINE_PACKAGE_VERSION = '10.20'
-	
-	# The version of Wine Mono used by our supported version of Wine
-	# (See: <https://gitlab.winehq.org/wine/wine/-/wikis/Wine-Mono#versions>)
-	WINE_MONO_VERSION = '10.1.0'
 
 
 class Utility:
@@ -113,6 +100,10 @@ except ModuleNotFoundError:
 		f'{sys.executable} -m pip install -r {script_dir / "requirements.txt"}'
 	]))
 
+# Read the Wine version strings from our JSON file
+version_file = script_dir / 'version.json'
+version = json.loads(version_file.read_text('utf-8'))
+
 # Parse our command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--layout', action='store_true', help="Generate the Docker build context but don't build the container image")
@@ -126,7 +117,7 @@ parser.add_argument('--group-id', default=1000, type=int, help="Set the group ID
 parser.add_argument('--wine-prefix', default='/home/$USER/.local/share/wineprefixes/prefix', help="Set the filesystem path for the Wine prefix")
 args = parser.parse_args()
 
-# Attempt to determine the git commit for the script, falling back to "main" as a sane default
+# Attempt to determine the git commit for the script, falling back to "main" as a sensible default
 try:
 	
 	# Retrieve the git hash for the currently checked-out code
@@ -152,9 +143,8 @@ except (FileNotFoundError, subprocess.CalledProcessError):
 home_dir = '/home/{}'.format(args.user_name)
 options = {
 	'BUILD_SCRIPT_VERSION': git_commit,
-	'TEMPLATE_WINE_RELEASE_TAG': VersionConstants.WINE_RELEASE_TAG,
-	'TEMPLATE_WINE_PACKAGE_VERSION': VersionConstants.WINE_PACKAGE_VERSION,
-	'TEMPLATE_WINE_MONO_VERSION': VersionConstants.WINE_MONO_VERSION,
+	'TEMPLATE_WINE_RELEASE_TAG': version['wine-release-tag'],
+	'TEMPLATE_WINE_MONO_VERSION': version['wine-mono-version'],
 	'TEMPLATE_DEFAULT_BASE_IMAGE': args.base_image,
 	'TEMPLATE_ENABLE_32_BIT_SUPPORT': not args.no_32bit,
 	'TEMPLATE_ENABLE_SUDO_SUPPORT': not args.no_sudo,
@@ -216,6 +206,6 @@ if not args.layout:
 		'docker', 'buildx', 'build',
 		'--progress=plain',
 		'--platform', 'linux/amd64',
-		'-t', 'epicgames/wine-patched:{}'.format(VersionConstants.WINE_PACKAGE_VERSION),
+		'-t', 'epicgames/wine-patched:{}'.format(version['wine-version']),
 		context_dir
 	])

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, subprocess, sys
+import json, platform, subprocess, sys
 from pathlib import Path
 
 
@@ -62,6 +62,7 @@ def report_missing_engine(editor_exe):
 
 # Resolve the absolute paths to our input directories
 script_dir = Path(__file__).parent
+repo_root = script_dir.parent.parent.parent
 context_dir = script_dir / 'context'
 unreal_dir = context_dir / 'UnrealEngine'
 engine_dir = unreal_dir / 'Engine'
@@ -73,10 +74,10 @@ if editor_exe.exists() == False or build_version.exists() == False:
 	report_missing_engine(editor_exe)
 
 # Attempt to detect the engine version of the Installed Build
-version = None
+engine_version = None
 try:
 	version_json = json.loads(build_version.read_text('utf-8'))
-	version = '{}.{}.{}'.format(
+	engine_version = '{}.{}.{}'.format(
 		version_json['MajorVersion'],
 		version_json['MinorVersion'],
 		version_json['PatchVersion']
@@ -84,13 +85,22 @@ try:
 except:
 	report_missing_engine(editor_exe)
 
+# Ensure our Wine base image has been built
+build_script = 'build.py' if platform.system() == 'Windows' else 'build.sh'
+Utility.run([repo_root / 'build' / build_script])
+
+# Read the Wine version string so we know the base image tag
+wine_version_file = repo_root / 'build' / 'version.json'
+wine_version = json.loads(wine_version_file.read_text('utf-8'))
+
 # Build the container image
-image_tag = 'epicgames/unreal-engine:dev-wine-blueprintonly-{}'.format(version)
-Utility.log('Detected files for Unreal Engine version {}'.format(version))
+image_tag = 'epicgames/unreal-engine:dev-wine-blueprintonly-{}'.format(engine_version)
+Utility.log('Detected files for Unreal Engine version {}'.format(engine_version))
 build_result = Utility.run([
 	'docker', 'buildx', 'build',
 	'--progress=plain',
 	'--platform', 'linux/amd64',
+	'--build-arg', 'WINE_VERSION={}'.format(wine_version['wine-version']),
 	'-t', image_tag,
 	context_dir
 ])

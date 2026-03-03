@@ -1,5 +1,6 @@
 # Extend the base image containing the patched version of Wine
-FROM epicgames/wine-patched:10.20
+ARG WINE_VERSION
+FROM epicgames/wine-patched:${WINE_VERSION}
 
 # Disable Wine debug logging
 ENV WINEDEBUG=-all

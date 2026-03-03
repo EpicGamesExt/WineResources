@@ -1,0 +1,11 @@
+{
+	"//1.1": "The human-readable version number for the version of Wine that we support",
+	"wine-version": "10.20",
+	
+	"//2.1": "The git tag for the version of Wine that we support",
+	"wine-release-tag": "wine-10.20",
+	
+	"//3.1": "The version of Wine Mono used by our supported version of Wine",
+	"//3.2": "(See: <https://gitlab.winehq.org/wine/wine/-/wikis/Wine-Mono#versions>)",
+	"wine-mono-version": "10.1.0"
+}

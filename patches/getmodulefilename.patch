@@ -1,0 +1,33 @@
+diff --git a/dlls/kernelbase/loader.c b/dlls/kernelbase/loader.c
+index f6347c1cc9ce993b92897c25247041e678b4c289..ff68d1ad2b402468c42ab7ad42a2a3212035fba6 100644
+--- a/dlls/kernelbase/loader.c
++++ b/dlls/kernelbase/loader.c
+@@ -305,17 +305,26 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetModuleFileNameW( HMODULE module, LPWSTR filena
+     {
+         len = min( size, win16_tib->exe_name->Length / sizeof(WCHAR) );
+         memcpy( filename, win16_tib->exe_name->Buffer, len * sizeof(WCHAR) );
+-        if (len < size) filename[len] = 0;
+         goto done;
+     }
+ 
+     name.Buffer = filename;
+     name.MaximumLength = min( size, UNICODE_STRING_MAX_CHARS ) * sizeof(WCHAR);
+     status = LdrGetDllFullName( module, &name );
+-    if (!status || status == STATUS_BUFFER_TOO_SMALL) len = name.Length / sizeof(WCHAR);
++    if (!status || status == STATUS_BUFFER_TOO_SMALL)
++        len = name.Length / sizeof(WCHAR);
+     SetLastError( RtlNtStatusToDosError( status ));
++    
+ done:
+     TRACE( "%s\n", debugstr_wn(filename, len) );
++    if (len < size)
++    {
++        filename[len] = 0;
++    }
++    else if (size > 0)
++    {
++        filename[size - 1] = 0;
++    }
+     return len;
+ }
+ 

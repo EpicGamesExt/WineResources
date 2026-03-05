@@ -1,0 +1,64 @@
+diff --git a/dlls/imagehlp/integrity.c b/dlls/imagehlp/integrity.c
+index ebad7001548b146a0c5dbc2af1287fba2ae8de3d..af3c4984206bce2faba9d1b7ff81cc5c955cf8df 100644
+--- a/dlls/imagehlp/integrity.c
++++ b/dlls/imagehlp/integrity.c
+@@ -830,10 +830,11 @@ BOOL WINAPI ImageGetDigestStream(
+     nt_hdr = (IMAGE_NT_HEADERS *)(map + offset);
+     if( nt_hdr->Signature != IMAGE_NT_SIGNATURE )
+         goto invalid_parameter;
+-    /* It's clear why the checksum is cleared, but why only these size headers?
+-     */
+-    nt_hdr->OptionalHeader.SizeOfInitializedData = 0;
+-    nt_hdr->OptionalHeader.SizeOfImage = 0;
++
++    // Set the IMAGE_FILE_SECURITY_DIRECTORY values to zero as Windows does not include them.
++    nt_hdr->OptionalHeader.DataDirectory[IMAGE_FILE_SECURITY_DIRECTORY].Size = 0;
++    nt_hdr->OptionalHeader.DataDirectory[IMAGE_FILE_SECURITY_DIRECTORY].VirtualAddress = 0;
++
+     nt_hdr->OptionalHeader.CheckSum = 0;
+     size = sizeof(nt_hdr->Signature) + sizeof(nt_hdr->FileHeader) +
+         nt_hdr->FileHeader.SizeOfOptionalHeader;
+@@ -854,19 +855,42 @@ BOOL WINAPI ImageGetDigestStream(
+     section_headers = (IMAGE_SECTION_HEADER *)(map + offset);
+     IMAGEHLP_ReportCodeSections( section_headers, num_sections,
+         map, fileSize, DigestFunction, DigestHandle );
++
++    IMAGEHLP_ReportSection( section_headers, num_sections, ".rdata",
++        map, fileSize, DigestFunction, DigestHandle );
++
+     IMAGEHLP_ReportSection( section_headers, num_sections, ".data",
+         map, fileSize, DigestFunction, DigestHandle );
+-    IMAGEHLP_ReportSection( section_headers, num_sections, ".rdata",
++
++    IMAGEHLP_ReportSection( section_headers, num_sections, ".pdata",
++        map, fileSize, DigestFunction, DigestHandle );
++
++    IMAGEHLP_ReportSection( section_headers, num_sections, ".didat",
+         map, fileSize, DigestFunction, DigestHandle );
++
+     IMAGEHLP_ReportImportSection( section_headers, num_sections,
+         map, fileSize, DigestLevel, DigestFunction, DigestHandle );
++
++    IMAGEHLP_ReportSection( section_headers, num_sections, ".tls",
++        map, fileSize, DigestFunction, DigestHandle );
++
++    IMAGEHLP_ReportSection( section_headers, num_sections, ".00cfg",
++        map, fileSize, DigestFunction, DigestHandle );
++    
++    IMAGEHLP_ReportSection( section_headers, num_sections, "_RDATA",
++        map, fileSize, DigestFunction, DigestHandle );
++
+     if( DigestLevel & CERT_PE_IMAGE_DIGEST_DEBUG_INFO )
+         IMAGEHLP_ReportSection( section_headers, num_sections, ".debug",
+             map, fileSize, DigestFunction, DigestHandle );
++
+     if( DigestLevel & CERT_PE_IMAGE_DIGEST_RESOURCES )
+         IMAGEHLP_ReportSection( section_headers, num_sections, ".rsrc",
+             map, fileSize, DigestFunction, DigestHandle );
+ 
++    IMAGEHLP_ReportSection( section_headers, num_sections, ".reloc",
++        map, fileSize, DigestFunction, DigestHandle );
++
+ end:
+     if( map )
+         UnmapViewOfFile( map );

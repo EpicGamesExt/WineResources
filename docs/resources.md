@@ -7,6 +7,7 @@ This page presents a curated list of additional resources from external websites
 
 - [Wine-Enabled Containers section of the official Unreal Engine documentation](#wine-enabled-containers-section-of-the-official-unreal-engine-documentation)
 - [Asset cooking technical deep dive blog post](#asset-cooking-technical-deep-dive-blog-post)
+- [AutoSDK C++ compilation blog post](#autosdk-c-compilation-blog-post)
 
 
 ## Wine-Enabled Containers section of the official Unreal Engine documentation
@@ -21,3 +22,10 @@ The official Unreal Engine documentation includes a section titled *"Wine-Enable
 **Link:** <https://tensorworks.com.au/blog/migrating-unreal-engine-cook-workloads-to-wine/>
 
 The [TensorWorks](https://tensorworks.com.au/) blog post titled *"Migrating Unreal Engine cook workloads to Linux with Wine"* provides a technical deep-dive discussing the development of patches from this repository that improve the experience of deploying Unreal Engine asset cooking workloads in Linux containers with Wine.
+
+
+## AutoSDK C++ compilation blog post
+
+**Link:** <https://tensorworks.com.au/blog/unreal-engine-cpp-compilation-for-windows-under-wine/>
+
+The [TensorWorks](https://tensorworks.com.au/) blog post titled *"Unreal Engine C++ compilation for Windows under Linux with Wine"* provides an overview of the creation of the C++ compilation examples in the [quickstart](../examples/quickstart/) directory of this repository.

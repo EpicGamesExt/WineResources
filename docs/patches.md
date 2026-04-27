@@ -5,11 +5,7 @@ This page documents the custom patches that are applied when [building Wine for 
 
 ## Contents
 
-- [cmd.exe: Fix crashes when for_ctrl->set is empty](#cmdexe-fix-crashes-when-for_ctrl-set-is-empty)
-- [cryptnet: Close leaking file handle in find_cached_revocation_status](#cryptnet-close-leaking-file-handle-in-find_cached_revocation_status)
-- [Fix start of word position matching in findstr](#fix-start-of-word-position-matching-in-findstr)
 - [Add case for SO_CONDITIONAL_ACCEPT in setsockopt()](#add-case-for-so_conditional_accept-in-setsockopt)
-- [Fix GetModuleFileName string termination](#fix-getmodulefilename-string-termination)
 - [GlobalMemoryStatusEx cache control patch](#globalmemorystatusex-cache-control-patch)
 - [Add missing sections to ImageGetDigestStream](#add-missing-sections-to-imagegetdigeststream)
 - [Add the minidump API set to Wine's API set schema](#add-the-minidump-api-set-to-wines-api-set-schema)
@@ -19,43 +15,10 @@ This page documents the custom patches that are applied when [building Wine for 
     - [wineserver: Report non-zero exit code for abnormal process termination](#wineserver-report-non-zero-exit-code-for-abnormal-process-termination)
     - [Minidump backport patches](#minidump-backport-patches)
     - [ntdll.dll: Update NtQueryDirectoryFile to align with current Windows behaviour](#ntdlldll-update-ntquerydirectoryfile-to-align-with-current-windows-behaviour)
-
-
-## cmd.exe: Fix crashes when for_ctrl->set is empty
-
-**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10293
-
-**Status:** Merged upstream in commit [5d6905a1](https://gitlab.winehq.org/wine/wine/-/commit/5d6905a100d4632f8ab9512064d10c8a35ebabbd), present in Wine 11.5 and newer
-
-**Patch file:** [cmd-fixes.patch](../patches/cmd-fixes.patch)
-
-This change fixes an issue with `cmd.exe`, where attempting to loop over a null set using a `for` loop triggers a segfault. For example, this trivial example breaks under Wine (but not under Windows):
-
-```bat
-for %%i in () do echo "no"
-```
-
-
-## cryptnet: Close leaking file handle in find_cached_revocation_status
-
-**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/9894
-
-**Status:** Merged upstream in commit [df706cc9](https://gitlab.winehq.org/wine/wine/-/commit/df706cc9a409ad21da98e87a1bbdd043fbd9213b), present in Wine 11.1 and newer
-
-**Patch file:** [cryptnet-file-stream-leak-fix.patch](../patches/cryptnet-file-stream-leak-fix.patch)
-
-Fixes an issue where `find_cached_revocation_status` only closes file handles in failure cases. This causes a leak of stdio stream handles. This leads to .NET MSBuild failing to build sufficiently large projects once all stream I/O indexes are used up and `_wfsopen` fails.
-
-
-## Fix start of word position matching in findstr
-
-**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10294
-
-**Status:** Merged upstream in commit [dc2fa8cc](https://gitlab.winehq.org/wine/wine/-/commit/dc2fa8cc2c438e6e4a48e53837d7bd1e4f01df47), present in Wine 11.5 and newer
-
-**Patch file:** [findstr-fixes.patch](../patches/findstr-fixes.patch)
-
-Add support for the `\<` (start of word position matching) pattern in `findstr`. Currently, only `^` (start of line) is implemented.
+    - [cryptnet: Close leaking file handle in find_cached_revocation_status](#cryptnet-close-leaking-file-handle-in-find_cached_revocation_status)
+    - [cmd.exe: Fix crashes when for_ctrl->set is empty](#cmdexe-fix-crashes-when-for_ctrl-set-is-empty)
+    - [Fix start of word position matching in findstr](#fix-start-of-word-position-matching-in-findstr)
+    - [Fix GetModuleFileName string termination](#fix-getmodulefilename-string-termination)
 
 
 ## Add case for SO_CONDITIONAL_ACCEPT in setsockopt()
@@ -67,17 +30,6 @@ Add support for the `\<` (start of word position matching) pattern in `findstr`.
 **Patch file:** [gdk_so_conditional_accept.patch](../patches/gdk_so_conditional_accept.patch)
 
 This patch adds a no-op case for `SO_CONDITIONAL_ACCEPT` in `dlls/ws2_32/socket.c` for `setsockopt()`.
-
-
-## Fix GetModuleFileName string termination
-
-**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10291
-
-**Status:** Under review
-
-**Patch file:** [getmodulefilename.patch](../patches/getmodulefilename.patch)
-
-After Windows XP the string termination behaviour of `GetModuleFileName` was changed to always terminate the path returned, even if the buffer is insufficient to contain the null terminator. This patch addresses that change in behaviour to ensure strings are always null terminated, even if the buffer is too small.
 
 
 ## GlobalMemoryStatusEx cache control patch
@@ -201,3 +153,43 @@ This file backported the minidump code changes from Wine 9.13 to the stable Wine
 **Patch file:** [ntquerydirectoryfile-reset-mask.patch](../patches/ntquerydirectoryfile-reset-mask.patch)
 
 Wine's implementation of the [NtQueryDirectoryFile](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntquerydirectoryfile) function behaves in a manner consistent with the description in Microsoft's documentation. However, Microsoft changed the behaviour of this function in Windows 8 without updating the corresponding documentation, and some applications such as MSVC have been designed to rely on the new behaviour. This patch implements the new behaviour under Wine, which fixes errors that can occur when compiling Unreal Engine's C++ code with the Visual Studio compiler toolchain.
+
+
+## cryptnet: Close leaking file handle in find_cached_revocation_status
+
+**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/9894
+
+**Status:** Merged upstream in commit [df706cc9](https://gitlab.winehq.org/wine/wine/-/commit/df706cc9a409ad21da98e87a1bbdd043fbd9213b), present in Wine 11.1 and newer
+
+Fixes an issue where `find_cached_revocation_status` only closes file handles in failure cases. This causes a leak of stdio stream handles. This leads to .NET MSBuild failing to build sufficiently large projects once all stream I/O indexes are used up and `_wfsopen` fails.
+
+
+## cmd.exe: Fix crashes when for_ctrl->set is empty
+
+**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10293
+
+**Status:** Merged upstream in commit [5d6905a1](https://gitlab.winehq.org/wine/wine/-/commit/5d6905a100d4632f8ab9512064d10c8a35ebabbd), present in Wine 11.5 and newer
+
+This change fixes an issue with `cmd.exe`, where attempting to loop over a null set using a `for` loop triggers a segfault. For example, this trivial example breaks under Wine (but not under Windows):
+
+```bat
+for %%i in () do echo "no"
+```
+
+
+## Fix start of word position matching in findstr
+
+**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10294
+
+**Status:** Merged upstream in commit [dc2fa8cc](https://gitlab.winehq.org/wine/wine/-/commit/dc2fa8cc2c438e6e4a48e53837d7bd1e4f01df47), present in Wine 11.5 and newer
+
+Add support for the `\<` (start of word position matching) pattern in `findstr`. Currently, only `^` (start of line) is implemented.
+
+
+## Fix GetModuleFileName string termination
+
+**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10291
+
+**Status:** Merged upstream in commit [8060d2d9](https://gitlab.winehq.org/wine/wine/-/commit/8060d2d91db00d9700b802f52d86e13412810907), present in Wine 11.7 and newer
+
+After Windows XP the string termination behaviour of `GetModuleFileName` was changed to always terminate the path returned, even if the buffer is insufficient to contain the null terminator. This patch addresses that change in behaviour to ensure strings are always null terminated, even if the buffer is too small.

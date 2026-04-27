@@ -1,8 +1,8 @@
 diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
-index caa597cb8b8655664098f425c995ccf56edf287b..5ad7ca6f882a7be45ef18fc493b653cb3a1553ce 100644
+index 67e2f3713d7eeecc83ee61e53ff13714e882fc28..b5a4cc84e206ce54f35060864c351cfce0562c75 100644
 --- a/dlls/ntdll/unix/process.c
 +++ b/dlls/ntdll/unix/process.c
-@@ -1186,7 +1186,8 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
+@@ -1197,7 +1197,8 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
                      {
                          SERVER_START_REQ(get_process_vm_counters)
                          {
@@ -13,10 +13,10 @@ index caa597cb8b8655664098f425c995ccf56edf287b..5ad7ca6f882a7be45ef18fc493b653cb
                              {
                                  pvmi.PeakVirtualSize = reply->peak_virtual_size;
 diff --git a/server/process.c b/server/process.c
-index 4a06595c66ea550bcab68b02f37be5cab411cb88..a6ae53da0840daf173e69dfd2e7d6e7a79a4853e 100644
+index fb662005bcb166f977880cbef77ef66becf2f20f..cdf18ac42ee89dbc9dadbea8ed35f843586aa5af 100644
 --- a/server/process.c
 +++ b/server/process.c
-@@ -64,6 +64,9 @@
+@@ -63,6 +63,9 @@
  #include "request.h"
  #include "user.h"
  #include "security.h"
@@ -26,7 +26,7 @@ index 4a06595c66ea550bcab68b02f37be5cab411cb88..a6ae53da0840daf173e69dfd2e7d6e7a
  
  /* process object */
  
-@@ -1601,10 +1604,42 @@ DECL_HANDLER(get_process_image_name)
+@@ -1599,10 +1602,42 @@ DECL_HANDLER(get_process_image_name)
      release_object( process );
  }
  
@@ -70,7 +70,7 @@ index 4a06595c66ea550bcab68b02f37be5cab411cb88..a6ae53da0840daf173e69dfd2e7d6e7a
  
      if (!process) return;
      if (process->unix_pid != -1)
-@@ -1632,6 +1667,12 @@ DECL_HANDLER(get_process_vm_counters)
+@@ -1630,6 +1665,12 @@ DECL_HANDLER(get_process_vm_counters)
                  else if (sscanf( line, "VmSwap: %lu", &value ))
                      reply->pagefile_usage += (mem_size_t)value * 1024;
              }
@@ -84,7 +84,7 @@ index 4a06595c66ea550bcab68b02f37be5cab411cb88..a6ae53da0840daf173e69dfd2e7d6e7a
              fclose( f );
          }
 diff --git a/server/protocol.def b/server/protocol.def
-index 6712a661817095c989e9fdb78d9a893029396bb8..1d3a0e87393e6c65d149a85e9d4f448700777a98 100644
+index 5bca381fd910a0ef10ea2fdafde296fc8c366dd7..bf90cdcd71c39f33450851cb5a37d5ae35f3b931 100644
 --- a/server/protocol.def
 +++ b/server/protocol.def
 @@ -1238,7 +1238,8 @@ typedef volatile struct

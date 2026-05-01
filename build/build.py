@@ -84,12 +84,14 @@ class Utility:
 
 # Resolve the absolute paths to our input directories
 script_dir = Path(__file__).parent
-template_dir = script_dir / 'template'
 context_dir = script_dir / 'context'
+template_dir = script_dir / 'template'
 dependencies_dir = script_dir / 'dependencies'
-patches_dir = script_dir.parent / 'patches'
 shim_dir = script_dir.parent / 'memory-shim'
 libmemory_patches_dir = script_dir.parent / 'libmemory-patches'
+patches_dir = script_dir.parent / 'patches'
+tools_dir = script_dir.parent / 'tools'
+symbol_indexer_dir = tools_dir / 'symbol-file-indexer'
 
 # Verify that our dependencies are installed
 try:
@@ -107,6 +109,7 @@ version = json.loads(version_file.read_text('utf-8'))
 # Parse our command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--layout', action='store_true', help="Generate the Docker build context but don't build the container image")
+parser.add_argument('--debug-symbols', action='store_true', help="Include debug symbols for Wine's system DLLs in the container image")
 parser.add_argument('--no-32bit', action='store_true', help="Don't include 32-bit application support in the container image")
 parser.add_argument('--no-sudo', action='store_true', help="Don't give the non-root user sudo privileges in the container image")
 parser.add_argument('--no-mitigations', action='store_true', help="Don't include the issue mitigations needed to run UE builds in the container image")
@@ -146,6 +149,7 @@ options = {
 	'TEMPLATE_WINE_RELEASE_TAG': version['wine-release-tag'],
 	'TEMPLATE_WINE_MONO_VERSION': version['wine-mono-version'],
 	'TEMPLATE_DEFAULT_BASE_IMAGE': args.base_image,
+	'TEMPLATE_ENABLE_DEBUG_SYMBOLS': args.debug_symbols,
 	'TEMPLATE_ENABLE_32_BIT_SUPPORT': not args.no_32bit,
 	'TEMPLATE_ENABLE_SUDO_SUPPORT': not args.no_sudo,
 	'TEMPLATE_ENABLE_MITIGATIONS': not args.no_mitigations,
@@ -183,10 +187,15 @@ copied_shim = context_dir / 'memory-shim'
 Utility.delete_if_exists(copied_shim)
 shutil.copytree(shim_dir, copied_shim)
 
-# Copy the libmemory-patches into the build context directory
+# Copy the libmemory-patches source code into the build context directory
 copied_libmemory_patches = context_dir / 'libmemory-patches'
 Utility.delete_if_exists(copied_libmemory_patches)
 shutil.copytree(libmemory_patches_dir, copied_libmemory_patches)
+
+# Copy the symbol indexing tool source code into the build context directory
+copied_indexer = context_dir / 'symbol-file-indexer'
+Utility.delete_if_exists(copied_indexer)
+shutil.copytree(symbol_indexer_dir, copied_indexer)
 
 # Copy the build dependencies into the build context directory
 copied_dependencies = context_dir / 'dependencies'

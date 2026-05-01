@@ -51,7 +51,7 @@ std::string HashForPE(const std::filesystem::path& path)
 	
 	// Map PE file into memory
 	auto fileSize = ftell(file.get());
-	void* mapped = mmap(NULL, fileSize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(file.get()), 0);
+	void* mapped = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fileno(file.get()), 0);
 	if (mapped == MAP_FAILED){
 		throw fmt::system_error(errno, "Failed to map file into memory: {}", path.string());
 	}
@@ -117,7 +117,7 @@ std::string SignatureForPDB(const std::filesystem::path& path)
 	
 	// Map PDB file into memory
 	auto fileSize = ftell(file.get());
-	void* mapped = mmap(NULL, fileSize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(file.get()), 0);
+	void* mapped = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fileno(file.get()), 0);
 	if (mapped == MAP_FAILED) {
 		throw fmt::system_error(errno, "Failed to map file into memory: {}", path.string());
 	}

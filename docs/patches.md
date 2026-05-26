@@ -5,6 +5,7 @@ This page documents the custom patches that are applied when [building Wine for 
 
 ## Contents
 
+- [CertSetCertificateContextProperty() patch](#certsetcertificatecontextproperty-patch)
 - [Add case for SO_CONDITIONAL_ACCEPT in setsockopt()](#add-case-for-so_conditional_accept-in-setsockopt)
 - [GlobalMemoryStatusEx cache control patch](#globalmemorystatusex-cache-control-patch)
 - [Add missing sections to ImageGetDigestStream](#add-missing-sections-to-imagegetdigeststream)
@@ -19,6 +20,19 @@ This page documents the custom patches that are applied when [building Wine for 
     - [cmd.exe: Fix crashes when for_ctrl->set is empty](#cmdexe-fix-crashes-when-for_ctrl-set-is-empty)
     - [Fix start of word position matching in findstr](#fix-start-of-word-position-matching-in-findstr)
     - [Fix GetModuleFileName string termination](#fix-getmodulefilename-string-termination)
+
+
+## CertSetCertificateContextProperty() patch
+
+**Upstream merge request:** https://gitlab.winehq.org/wine/wine/-/merge_requests/10993
+
+**Status:** Merged upstream in commit [213ee7e9](https://gitlab.winehq.org/wine/wine/-/commit/213ee7e9a16fb3f821cced389528eb4a5698dc9a)
+
+**Patch file:** [cert-set-certificate-context-property.patch](../patches/cert-set-certificate-context-property.patch)
+
+The documentation for CertSetCertificateContextProperty() says pvData should contain a pointer to an NCRYPT_KEY_HANDLE, however the actual implementation of this function expects just the handle.
+
+Without this fix, `dotnet restore` crashes during its initial setup.
 
 
 ## Add case for SO_CONDITIONAL_ACCEPT in setsockopt()

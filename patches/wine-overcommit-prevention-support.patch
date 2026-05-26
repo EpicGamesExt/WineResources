@@ -1,21 +1,21 @@
 diff --git a/dlls/ntdll/Makefile.in b/dlls/ntdll/Makefile.in
-index 3c0dfa7a89584880815cbd8f65c974b9e08aae93..c7cae736532a706a82ff6b3ae3a0e5c8770f23af 100644
+index 022583aa20e22454dbb251c61be002bf2153a514..b049b72e23c9e78da709ea771b6a80dd1ce47e3b 100644
 --- a/dlls/ntdll/Makefile.in
 +++ b/dlls/ntdll/Makefile.in
 @@ -5,7 +5,7 @@ IMPORTLIB = ntdll
  IMPORTS   = $(TOMCRYPT_PE_LIBS) $(MUSL_PE_LIBS)
  EXTRAINCL = $(TOMCRYPT_PE_CFLAGS)
- UNIX_CFLAGS  = $(UNWIND_CFLAGS) $(HWLOC_CFLAGS)
--UNIX_LIBS    = $(IOKIT_LIBS) $(COREFOUNDATION_LIBS) $(CORESERVICES_LIBS) $(RT_LIBS) $(PTHREAD_LIBS) $(UNWIND_LIBS) $(I386_LIBS) $(PROCSTAT_LIBS) $(HWLOC_LIBS)
-+UNIX_LIBS    = $(IOKIT_LIBS) $(COREFOUNDATION_LIBS) $(CORESERVICES_LIBS) $(RT_LIBS) $(PTHREAD_LIBS) $(UNWIND_LIBS) $(I386_LIBS) $(PROCSTAT_LIBS) $(HWLOC_LIBS) -lmemory-patches
+ UNIX_CFLAGS  = $(HWLOC_CFLAGS)
+-UNIX_LIBS    = $(IOKIT_LIBS) $(COREFOUNDATION_LIBS) $(CORESERVICES_LIBS) $(RT_LIBS) $(PTHREAD_LIBS) $(I386_LIBS) $(PROCSTAT_LIBS) $(HWLOC_LIBS)
++UNIX_LIBS    = $(IOKIT_LIBS) $(COREFOUNDATION_LIBS) $(CORESERVICES_LIBS) $(RT_LIBS) $(PTHREAD_LIBS) $(I386_LIBS) $(PROCSTAT_LIBS) $(HWLOC_LIBS) -lmemory-patches
  
  EXTRADLLFLAGS = -nodefaultlibs
  i386_EXTRADLLFLAGS = -Wl,--image-base,0x7bc00000
 diff --git a/dlls/ntdll/unix/server.c b/dlls/ntdll/unix/server.c
-index 258a959de72d9e049a2fe34256be7293e255aa63..0396cea15642ca69adfe15f0aad4fa4436c355e0 100644
+index 08d7ceb7d175b70208708a7ddc532828add7ae78..d443ddfd0218d62dad80102508718e9e11a0f2ad 100644
 --- a/dlls/ntdll/unix/server.c
 +++ b/dlls/ntdll/unix/server.c
-@@ -1208,6 +1208,32 @@ done:
+@@ -1207,6 +1207,32 @@ done:
      return ret;
  }
  
@@ -49,7 +49,7 @@ index 258a959de72d9e049a2fe34256be7293e255aa63..0396cea15642ca69adfe15f0aad4fa44
  /***********************************************************************
   *           wine_server_fd_to_handle
 diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
-index 5381179d48ea095c21edf7785e1b817fb67f0895..f7bb233fe1a12072407ba6e1a20d00fa120f3dbd 100644
+index 148624ff405da05950f6e03704d17ab4a6482aa8..ddce441686ad6df1a060722d9064ed4224fd1182 100644
 --- a/dlls/ntdll/unix/system.c
 +++ b/dlls/ntdll/unix/system.c
 @@ -36,6 +36,9 @@
@@ -62,7 +62,7 @@ index 5381179d48ea095c21edf7785e1b817fb67f0895..f7bb233fe1a12072407ba6e1a20d00fa
  #ifdef HAVE_SYS_PARAM_H
  # include <sys/param.h>
  #endif
-@@ -2472,33 +2475,11 @@ static void get_performance_info( SYSTEM_PERFORMANCE_INFORMATION *info )
+@@ -2508,33 +2511,11 @@ static void get_performance_info( SYSTEM_PERFORMANCE_INFORMATION *info )
  
  #ifdef linux
      {
@@ -102,10 +102,10 @@ index 5381179d48ea095c21edf7785e1b817fb67f0895..f7bb233fe1a12072407ba6e1a20d00fa
  #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || \
      defined(__OpenBSD__) || defined(__DragonFly__) || defined(__APPLE__)
 diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
-index 3932b175a965c7b0a552ec936dae5ac3f95e0833..7a115b53b4c1c154d167c629ba006fd1b57ea880 100644
+index 0a60da3a2025a089fd0e69f9d0088e787a97c4df..4aa0d861e0774bee39d289572bd8232b6ba6a604 100644
 --- a/dlls/ntdll/unix/unix_private.h
 +++ b/dlls/ntdll/unix/unix_private.h
-@@ -233,6 +233,8 @@ extern unsigned int server_queue_process_apc( HANDLE process, const union apc_ca
+@@ -246,6 +246,8 @@ extern unsigned int server_queue_process_apc( HANDLE process, const union apc_ca
  extern int server_get_unix_fd( HANDLE handle, unsigned int wanted_access, int *unix_fd,
                                 int *needs_close, enum server_fd_type *type, unsigned int *options );
  extern int wine_server_receive_fd( obj_handle_t *handle );
@@ -115,10 +115,10 @@ index 3932b175a965c7b0a552ec936dae5ac3f95e0833..7a115b53b4c1c154d167c629ba006fd1
  extern size_t server_init_process(void);
  extern void server_init_process_done(void);
 diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
-index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c04266e808 100644
+index 9297a5f3798114645e0502c05dd4f7479c7cd928..de4f892c7475ef3cd9eb4088c1dc58eb7d7ca921 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -92,6 +92,8 @@
+@@ -91,6 +91,8 @@
  #include "unix_private.h"
  #include "wine/debug.h"
  
@@ -127,7 +127,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
  WINE_DEFAULT_DEBUG_CHANNEL(virtual);
  WINE_DECLARE_DEBUG_CHANNEL(module);
  WINE_DECLARE_DEBUG_CHANNEL(virtual_ranges);
-@@ -267,6 +269,13 @@ void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
+@@ -266,6 +268,13 @@ void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
      assert( !((UINT_PTR)start & host_page_mask) );
      assert( !(size & host_page_mask) );
  
@@ -141,7 +141,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
      return mmap( start, size, prot, MAP_PRIVATE | MAP_ANON | MAP_FIXED | flags, -1, 0 );
  }
  
-@@ -275,6 +284,13 @@ void *anon_mmap_alloc( size_t size, int prot )
+@@ -274,6 +283,13 @@ void *anon_mmap_alloc( size_t size, int prot )
  {
      assert( !(size & host_page_mask) );
  
@@ -155,7 +155,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
      return mmap( NULL, size, prot, MAP_PRIVATE | MAP_ANON, -1, 0 );
  }
  
-@@ -590,6 +606,14 @@ static size_t unmap_area_above_user_limit( void *addr, size_t size )
+@@ -589,6 +605,14 @@ static size_t unmap_area_above_user_limit( void *addr, size_t size )
  static void *anon_mmap_tryfixed( void *start, size_t size, int prot, int flags )
  {
      void *ptr;
@@ -170,7 +170,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
  
  #ifdef MAP_FIXED_NOREPLACE
      ptr = mmap( start, size, prot, MAP_FIXED_NOREPLACE | MAP_PRIVATE | MAP_ANON | flags, -1, 0 );
-@@ -1975,8 +1999,17 @@ static int mprotect_range( void *base, size_t size, BYTE set, BYTE clear )
+@@ -1984,8 +2008,17 @@ static int mprotect_range( void *base, size_t size, BYTE set, BYTE clear )
   */
  static BOOL set_vprot( struct file_view *view, void *base, size_t size, BYTE vprot )
  {
@@ -188,7 +188,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
          /* each page may need different protections depending on write watch flag */
          set_page_vprot_bits( base, size, vprot & ~VPROT_WRITEWATCH, ~vprot & ~VPROT_WRITEWATCH );
      }
-@@ -1984,6 +2017,26 @@ static BOOL set_vprot( struct file_view *view, void *base, size_t size, BYTE vpr
+@@ -1993,6 +2026,26 @@ static BOOL set_vprot( struct file_view *view, void *base, size_t size, BYTE vpr
      {
          if (enable_write_exceptions && is_vprot_exec_write( vprot )) vprot |= VPROT_WRITEWATCH;
          else if (use_kernel_writewatch && view->protect & VPROT_WRITEWATCH) vprot &= ~VPROT_WRITEWATCH;
@@ -215,15 +215,15 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
          set_page_vprot( base, size, vprot );
      }
      return !mprotect_range( base, size, 0, 0 );
-@@ -3480,6 +3533,7 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
-     HANDLE shared_file;
+@@ -3496,6 +3549,7 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+     struct file_view *view;
      LARGE_INTEGER offset;
      sigset_t sigset;
 +    BOOL write_consumes_memory = FALSE;
  
      switch(protect)
      {
-@@ -3556,6 +3610,16 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3570,6 +3624,16 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
  
      if ((res = server_get_unix_fd( handle, 0, &unix_handle, &needs_close, NULL, NULL ))) return res;
  
@@ -240,7 +240,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
      server_enter_uninterrupted_section( &virtual_mutex, &sigset );
  
      res = map_view( &view, base, size, alloc_type, vprot, limit_low, limit_high, 0 );
-@@ -3586,6 +3650,11 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
+@@ -3600,6 +3664,11 @@ static unsigned int virtual_map_section( HANDLE handle, PVOID *addr_ptr, ULONG_P
          *addr_ptr = view->base;
          *size_ptr = size;
          VIRTUAL_DEBUG_DUMP_VIEW( view );
@@ -252,7 +252,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
      }
      else delete_view( view );
  
-@@ -5099,6 +5168,13 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+@@ -5116,6 +5185,13 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
      if (type & MEM_RESERVE_PLACEHOLDER && (protect != PAGE_NOACCESS)) return STATUS_INVALID_PARAMETER;
      if (!arm64ec_view && (attributes & MEM_EXTENDED_PARAMETER_EC_CODE)) return STATUS_INVALID_PARAMETER;
  
@@ -266,7 +266,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
      /* Reserve the memory */
  
      server_enter_uninterrupted_section( &virtual_mutex, &sigset );
-@@ -5161,6 +5237,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+@@ -5178,6 +5254,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
      {
          *ret = base;
          *size_ptr = size;
@@ -278,7 +278,7 @@ index cf3fcd56826913db4ad1d3d1cc46c853c9b95c82..f8bc576da7822473e7116d6b7b9230c0
      }
      else if (status == STATUS_NO_MEMORY)
          ERR( "out of memory for allocation, base %p size %08lx\n", base, size );
-@@ -5516,8 +5597,27 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
+@@ -5533,8 +5614,27 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
          /* Make sure all the pages are committed */
          if (get_committed_size( view, base, size, &vprot, VPROT_COMMITTED ) >= size && (vprot & VPROT_COMMITTED))
          {
@@ -319,10 +319,10 @@ index 84a6bd74d9dfef5a4fe69398d48d455f8812faa4..3ba9f3b2ac1c3e20dcd36a9795ade16f
  
  unicode_EXTRADEFS = -DBINDIR="\"${bindir}\"" -DDATADIR="\"${datadir}\""
 diff --git a/server/file.c b/server/file.c
-index cc5acc2aadc979bab1893bd505fe8ad23e26d1e6..609d95acc9da2a9f177b01bfc410d8643f7a911a 100644
+index 7b3324e993895287b291581ef82c25e57f068b89..90003ecbce627b79b090f81e4313d18ba3aa0e03 100644
 --- a/server/file.c
 +++ b/server/file.c
-@@ -618,6 +618,8 @@ void file_set_error(void)
+@@ -617,6 +617,8 @@ void file_set_error(void)
      case ENXIO:     set_error( STATUS_NO_SUCH_DEVICE ); break;
      case EXDEV:     set_error( STATUS_NOT_SAME_DEVICE ); break;
      case ELOOP:     set_error( STATUS_REPARSE_POINT_NOT_RESOLVED ); break;
@@ -332,10 +332,10 @@ index cc5acc2aadc979bab1893bd505fe8ad23e26d1e6..609d95acc9da2a9f177b01bfc410d864
      case EOVERFLOW: set_error( STATUS_INVALID_PARAMETER ); break;
  #endif
 diff --git a/server/mapping.c b/server/mapping.c
-index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd24b612e5 100644
+index f9a80bc6cf9d234901ca3f04f6c077118fb0c97d..57faf5c89367435cc7df733ebfb4458358b6a3f6 100644
 --- a/server/mapping.c
 +++ b/server/mapping.c
-@@ -43,6 +43,8 @@
+@@ -45,6 +45,8 @@
  #include "request.h"
  #include "security.h"
  
@@ -344,7 +344,7 @@ index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd
  /* list of memory ranges, used to store committed info */
  struct ranges
  {
-@@ -358,6 +360,41 @@ static int check_current_dir_for_exec(void)
+@@ -362,6 +364,41 @@ static int check_current_dir_for_exec(void)
      return (ret != MAP_FAILED);
  }
  
@@ -386,7 +386,7 @@ index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd
  /* create a temp file for anonymous mappings */
  static int create_temp_file( file_pos_t size )
  {
-@@ -383,7 +420,17 @@ static int create_temp_file( file_pos_t size )
+@@ -394,7 +431,17 @@ static int create_temp_file( file_pos_t size )
      fd = make_temp_file( tmpfn );
      if (fd != -1)
      {
@@ -405,7 +405,7 @@ index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd
          {
              close( fd );
              fd = -1;
-@@ -396,6 +443,11 @@ static int create_temp_file( file_pos_t size )
+@@ -407,6 +454,11 @@ static int create_temp_file( file_pos_t size )
      return fd;
  }
  
@@ -417,7 +417,7 @@ index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd
  /* find a memory view from its base address */
  struct memory_view *find_mapped_view( struct process *process, client_ptr_t base )
  {
-@@ -649,9 +701,18 @@ static int build_shared_mapping( struct mapping *mapping, size_t align_mask, int
+@@ -660,9 +712,18 @@ static int build_shared_mapping( struct mapping *mapping, size_t align_mask, int
  
      /* create a temp file for the mapping */
  
@@ -436,7 +436,7 @@ index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd
      if (!(buffer = malloc( max_size ))) goto error;
  
      /* copy the shared sections data into the temp file */
-@@ -1123,7 +1184,13 @@ static struct mapping *create_mapping( struct object *root, const struct unicode
+@@ -1203,7 +1264,13 @@ static struct mapping *create_mapping( struct object *root, const struct unicode
          }
          if ((flags & SEC_RESERVE) && !(mapping->committed = create_ranges())) goto error;
          mapping->size = round_size( mapping->size, page_mask );
@@ -450,7 +450,7 @@ index 905d528b04f2f6d45d9e30086f4901455ec03dfe..e87cd4716194bbbb9a4ca6cfe3be33fd
          if (!(mapping->fd = create_anonymous_fd( &mapping_fd_ops, unix_fd, &mapping->obj,
                                                   FILE_SYNCHRONOUS_IO_NONALERT ))) goto error;
          allow_fd_caching( mapping->fd );
-@@ -1797,3 +1864,22 @@ DECL_HANDLER(get_mapping_filename)
+@@ -1887,3 +1954,22 @@ DECL_HANDLER(get_mapping_filename)
  
      release_object( process );
  }

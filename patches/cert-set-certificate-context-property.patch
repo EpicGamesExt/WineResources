@@ -1,0 +1,18 @@
+diff --git a/dlls/crypt32/cert.c b/dlls/crypt32/cert.c
+index 085174561129fec200efaa98abdee7b965a64883..3c7ed9da4472df8bbe447e3c29f03f2db9428842 100644
+--- a/dlls/crypt32/cert.c
++++ b/dlls/crypt32/cert.c
+@@ -880,7 +880,12 @@ static BOOL CertContext_SetProperty(cert_t *cert, DWORD dwPropId,
+                 break;
+             }
+             keyContext.cbSize = sizeof(keyContext);
+-            keyContext.hCryptProv = *(const HCRYPTPROV *)pvData;
++
++            /* The documentation says that pvData should be a pointer to an
++             * NCRYPT_KEY_HANDLE. However, the actual implementation seems to
++             * expect pvData to be the NCRYPT_KEY_HANDLE itself.
++             */
++            keyContext.hCryptProv = (const HCRYPTPROV)pvData;
+             keyContext.dwKeySpec = CERT_NCRYPT_KEY_SPEC;
+             ret = CertContext_SetKeyContextProperty(cert->base.properties, &keyContext);
+             break;

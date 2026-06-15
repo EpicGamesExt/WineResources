@@ -636,11 +636,11 @@ struct current_memory_info get_current_memory_info(void)
                     current_mem_info.totalswap += value * 1024;
                 else if(sscanf(line, "SwapFree: %llu kB", &value) == 1)
                     current_mem_info.freeswap += value * 1024;
-                else if (sscanf(line, "Buffers: %llu", &value))
+                else if (sscanf(line, "Buffers: %llu", &value) == 1)
                     current_mem_info.freeram += value * 1024;
-                else if (sscanf(line, "Cached: %llu", &value))
+                else if (sscanf(line, "Cached: %llu", &value) == 1)
                     current_mem_info.freeram += value * 1024;
-                else if (sscanf(line, "MemAvailable: %llu", &value))
+                else if (sscanf(line, "MemAvailable: %llu", &value) == 1)
                     mem_available = value * 1024;
             }
             fclose(fp);

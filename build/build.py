@@ -110,6 +110,7 @@ version = json.loads(version_file.read_text('utf-8'))
 parser = argparse.ArgumentParser()
 parser.add_argument('--layout', action='store_true', help="Generate the Docker build context but don't build the container image")
 parser.add_argument('--debug-symbols', action='store_true', help="Include debug symbols for Wine's system DLLs in the container image")
+parser.add_argument('--source-code', action='store_true', help="Include source code in the container image")
 parser.add_argument('--no-32bit', action='store_true', help="Don't include 32-bit application support in the container image")
 parser.add_argument('--no-sudo', action='store_true', help="Don't give the non-root user sudo privileges in the container image")
 parser.add_argument('--no-mitigations', action='store_true', help="Don't include the issue mitigations needed to run UE builds in the container image")
@@ -150,6 +151,7 @@ options = {
 	'TEMPLATE_WINE_MONO_VERSION': version['wine-mono-version'],
 	'TEMPLATE_DEFAULT_BASE_IMAGE': args.base_image,
 	'TEMPLATE_ENABLE_DEBUG_SYMBOLS': args.debug_symbols,
+	'TEMPLATE_ENABLE_SOURCE_CODE': args.source_code,
 	'TEMPLATE_ENABLE_32_BIT_SUPPORT': not args.no_32bit,
 	'TEMPLATE_ENABLE_SUDO_SUPPORT': not args.no_sudo,
 	'TEMPLATE_ENABLE_MITIGATIONS': not args.no_mitigations,

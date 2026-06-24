@@ -11,6 +11,10 @@
 
 # - Mitigations:             {% if TEMPLATE_ENABLE_MITIGATIONS %}yes{% else %}no{% endif %}
 
+# - Debug symbols:           {% if TEMPLATE_ENABLE_DEBUG_SYMBOLS %}yes{% else %}no{% endif %}
+
+# - Source code:             {% if TEMPLATE_ENABLE_SOURCE_CODE %}yes{% else %}no{% endif %}
+
 # - Default base image:      {{ TEMPLATE_DEFAULT_BASE_IMAGE }}
 # - Non-root user name:      {{ TEMPLATE_USER_NAME }}
 # - Non-root user ID:        {{ TEMPLATE_USER_ID }}
@@ -20,7 +24,7 @@
 
 # Note: the base image is configurable, but it must be based on Ubuntu 22.04
 ARG BASE_IMAGE={{ TEMPLATE_DEFAULT_BASE_IMAGE }}
-FROM ${BASE_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS source
 
 # Disable interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -114,14 +118,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,t
 {% endif %}
 
 
-# Build the memory shim used for overcommit prevention
-COPY memory-shim/memory-shim.cpp /tmp/
-RUN g++ -shared -ldl -fPIC /tmp/memory-shim.cpp -o /tmp/memory-shim-64.so
-{% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
-RUN g++ -shared -ldl -fPIC -m32 /tmp/memory-shim.cpp -o /tmp/memory-shim-32.so
-{% endif %}
-
-
 # Clone the source code for libcgroup
 RUN git clone \
 	--depth=1 \
@@ -187,6 +183,23 @@ RUN sed -i 's|#include <libcgroup/systemd.h>||' /usr/include/libcgroup.h
 ENV WINE_SOURCE="/tmp/wine"
 RUN git clone --progress --depth=1 -b "{{ TEMPLATE_WINE_RELEASE_TAG }}" 'https://gitlab.winehq.org/wine/wine.git' "$WINE_SOURCE"
 
+# Apply our patches to the Wine source code
+COPY ./patches /tmp/patches/
+RUN cd "$WINE_SOURCE" && \
+	git config --global user.email "root@container.builder" && \
+	git config --global user.name "Container Build Stage" && \
+	git apply --whitespace=nowarn /tmp/patches/*.patch
+
+# Create a new build stage so we can preserve the clean Wine source tree before we perform the build
+FROM source as builder
+
+# Build the memory shim used for overcommit prevention
+COPY memory-shim/memory-shim.cpp /tmp/
+RUN g++ -shared -ldl -fPIC /tmp/memory-shim.cpp -o /tmp/memory-shim-64.so
+{% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
+RUN g++ -shared -ldl -fPIC -m32 /tmp/memory-shim.cpp -o /tmp/memory-shim-32.so
+{% endif %}
+
 # Build libmemory-patches
 COPY libmemory-patches /tmp/libmemory-patches
 RUN cd /tmp/libmemory-patches/ && \
@@ -199,14 +212,7 @@ RUN cd /tmp/libmemory-patches/ && \
 	cp libmemory-patches32.so /usr/lib/i386-linux-gnu/libmemory-patches.so
 {% endif %}
 
-# Apply our patches to the Wine source code
-COPY ./patches /tmp/patches/
-RUN cd "$WINE_SOURCE" && \
-	git config --global user.email "root@container.builder" && \
-	git config --global user.name "Container Build Stage" && \
-	git apply --whitespace=nowarn /tmp/patches/*.patch
-
-# Run the codegen steps that need to be performed prior to running `configure`
+# Run the Wine codegen steps that need to be performed prior to running `configure`
 # (Commands from here: <https://github.com/Kron4ek/Wine-Builds/blob/0697823107e88f791b4da2bc496d93d5ad1afd03/build_wine.sh#L283-L285>)
 RUN cd "$WINE_SOURCE" && \
 	./dlls/winevulkan/make_vulkan && \
@@ -280,9 +286,12 @@ RUN GOOS=windows GOARCH=amd64 go build -o /tmp/MSBuildWrapper.exe /tmp/MSBuildWr
 {% endif %}
 
 
-# Create an optional build stage that gathers the DLL files and PDB debug symbols for the Wine system libraries (useful for debugging purposes)
-# (Note that this will be skipped unless debug symbols are requested. It can also be targeted explicitly by passing `--target artifacts` to the `docker buildx build` command)
+# Create an optional build stage that gathers the DLL files, PDB debug symbols and source code for the Wine system libraries (useful for debugging purposes)
+# (Note that this will be skipped unless debug symbols or source code are requested. It can also be targeted explicitly by passing `--target artifacts` to the `docker buildx build` command)
 FROM builder AS artifacts
+
+# Copy the clean Wine source tree with our patches applied, from immediately before we performed the build
+COPY --from=source /tmp/wine /opt/wine/src
 
 # Build the symbol file indexing tool
 COPY symbol-file-indexer /tmp/symbol-file-indexer
@@ -316,7 +325,7 @@ COPY --from=artifacts /opt/wine/symbols /opt/wine/symbols
 {% if TEMPLATE_ENABLE_SOURCE_CODE %}
 
 # Copy the Wine source code into the new image
-COPY --from=builder --exclude=build32 --exclude=build64 /tmp/wine /opt/wine/src
+COPY --from=artifacts /opt/wine/src /opt/wine/src
 
 {% endif %}
 

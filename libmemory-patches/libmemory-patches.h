@@ -40,6 +40,7 @@ struct current_memory_info
 
 LIBMEMORY_PATCHES_API extern struct current_memory_info get_current_memory_info(void);
 LIBMEMORY_PATCHES_API int overcommit_prevention_enabled(void);
+LIBMEMORY_PATCHES_API int overcommit_prevention_exempt(void);
 LIBMEMORY_PATCHES_API BOOL memory_available_for_commit(size_t size);
 LIBMEMORY_PATCHES_API void touch_committed_pages(void* base, size_t size, uint32_t protect);
 LIBMEMORY_PATCHES_API BOOL has_write_flags(uint32_t protect);

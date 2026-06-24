@@ -313,6 +313,13 @@ COPY --from=artifacts /opt/wine/symbols /opt/wine/symbols
 
 {% endif %}
 
+{% if TEMPLATE_ENABLE_SOURCE_CODE %}
+
+# Copy the Wine source code into the new image
+COPY --from=builder --exclude=build32 --exclude=build64 /tmp/wine /opt/wine/src
+
+{% endif %}
+
 # Copy the memory shim into the new image
 COPY --from=builder /tmp/memory-shim-64.so /lib/x86_64-linux-gnu/memory-shim.so
 {% if TEMPLATE_ENABLE_32_BIT_SUPPORT %}
